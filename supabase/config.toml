@@ -1,7 +1,7 @@
 # Supabase CLI project config placeholder.
 # Link this folder to a real project with `supabase link --project-ref <project-ref>`.
 
-project_id = "gay-bar-passport"
+project_id = "fzaqoejmsfwgnppuasqj"
 
 [api]
 enabled = true
@@ -12,7 +12,20 @@ max_rows = 1000
 
 [auth]
 enabled = true
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://*.vercel.app"]
+site_url = "https://build-phase-1-only-of-the.vercel.app"
+additional_redirect_urls = ["http://localhost:3000", "https://*.vercel.app"]
 jwt_expiry = 3600
 enable_signup = true
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 8
+otp_expiry = 3600
