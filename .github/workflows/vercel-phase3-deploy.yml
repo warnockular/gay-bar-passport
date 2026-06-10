@@ -1,0 +1,26 @@
+name: Trigger Vercel Phase 3 Deployment
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel deploy hook
+        run: curl -fsS -X POST "https://api.vercel.com/v1/integrations/deploy/prj_QAa7tjRyBfwfAsZarMC6rJtiWoDQ/0qOGN2fbL1"
+      - uses: actions/checkout@v4
+      - name: Remove temporary deploy workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/vercel-phase3-deploy.yml
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Remove temporary Vercel deploy workflow"
+          git push
