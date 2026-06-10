@@ -8,8 +8,14 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signInWithMagicLink, type AuthActionResult } from "@/features/auth/actions";
 import { emailSchema, type EmailValues } from "@/schemas/auth";
+import { isSupabaseConfigured } from "@/lib/env";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+
+type AuthActionResult = {
+  ok: boolean;
+  message: string;
+};
 
 export function MagicLinkForm() {
   const searchParams = useSearchParams();
@@ -26,7 +32,25 @@ export function MagicLinkForm() {
 
   function onSubmit(values: EmailValues) {
     startTransition(async () => {
-      setResult(await signInWithMagicLink(values, searchParams.get("next") ?? undefined));
+      if (!isSupabaseConfigured) {
+        setResult({ ok: false, message: "Supabase is not configured yet. Add your environment variables to enable magic links." });
+        return;
+      }
+
+      const next = searchParams.get("next") ?? "/dashboard";
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: values.email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next.startsWith("/") ? next : "/dashboard")}`
+        }
+      });
+
+      setResult(
+        error
+          ? { ok: false, message: error.message }
+          : { ok: true, message: "Magic link sent. Check your email to continue your passport session." }
+      );
     });
   }
 

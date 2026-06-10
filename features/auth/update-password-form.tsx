@@ -2,15 +2,23 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updatePassword, type AuthActionResult } from "@/features/auth/actions";
 import { passwordUpdateSchema, type PasswordUpdateValues } from "@/schemas/auth";
+import { isSupabaseConfigured } from "@/lib/env";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+
+type AuthActionResult = {
+  ok: boolean;
+  message: string;
+};
 
 export function UpdatePasswordForm() {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<AuthActionResult | null>(null);
   const {
@@ -24,7 +32,23 @@ export function UpdatePasswordForm() {
 
   function onSubmit(values: PasswordUpdateValues) {
     startTransition(async () => {
-      setResult(await updatePassword(values));
+      if (!isSupabaseConfigured) {
+        setResult({ ok: false, message: "Supabase is not configured yet. Add your environment variables to update passwords." });
+        return;
+      }
+
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.updateUser({
+        password: values.password
+      });
+
+      if (error) {
+        setResult({ ok: false, message: error.message });
+        return;
+      }
+
+      router.refresh();
+      router.push("/profile?updated=password");
     });
   }
 

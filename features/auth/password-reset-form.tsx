@@ -7,8 +7,14 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { requestPasswordReset, type AuthActionResult } from "@/features/auth/actions";
 import { emailSchema, type EmailValues } from "@/schemas/auth";
+import { isSupabaseConfigured } from "@/lib/env";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+
+type AuthActionResult = {
+  ok: boolean;
+  message: string;
+};
 
 export function PasswordResetForm() {
   const [isPending, startTransition] = useTransition();
@@ -24,7 +30,21 @@ export function PasswordResetForm() {
 
   function onSubmit(values: EmailValues) {
     startTransition(async () => {
-      setResult(await requestPasswordReset(values));
+      if (!isSupabaseConfigured) {
+        setResult({ ok: false, message: "Supabase is not configured yet. Add your environment variables to enable password reset." });
+        return;
+      }
+
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
+        redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`
+      });
+
+      setResult(
+        error
+          ? { ok: false, message: error.message }
+          : { ok: true, message: "Password reset link sent. Check your email for the secure reset link." }
+      );
     });
   }
 

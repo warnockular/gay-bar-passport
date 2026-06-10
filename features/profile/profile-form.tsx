@@ -2,15 +2,24 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ImageUp, Save } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateProfile } from "@/features/profile/actions";
 import { profileSchema, type ProfileValues } from "@/schemas/profile";
 import type { Profile } from "@/services/profiles";
-import type { AuthActionResult } from "@/features/auth/actions";
+import { isSupabaseConfigured } from "@/lib/env";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import type { Database } from "@/types/database";
+
+type AuthActionResult = {
+  ok: boolean;
+  message: string;
+};
+
+type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
 
 type ProfileFormProps = {
   profile: Profile;
@@ -18,6 +27,7 @@ type ProfileFormProps = {
 };
 
 export function ProfileForm({ profile, email }: ProfileFormProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<AuthActionResult | null>(null);
   const [avatarName, setAvatarName] = useState<string>("");
@@ -35,17 +45,70 @@ export function ProfileForm({ profile, email }: ProfileFormProps) {
 
   function onSubmit(values: ProfileValues) {
     const avatarInput = document.getElementById("avatar") as HTMLInputElement | null;
-    const formData = new FormData();
-
-    formData.set("displayName", values.displayName);
-    formData.set("homeCity", values.homeCity ?? "");
-
-    if (avatarInput?.files?.[0]) {
-      formData.set("avatar", avatarInput.files[0]);
-    }
 
     startTransition(async () => {
-      setResult(await updateProfile(formData));
+      if (!isSupabaseConfigured) {
+        setResult({ ok: false, message: "Supabase is not configured yet. Add your environment variables to save profiles." });
+        return;
+      }
+
+      const supabase = createSupabaseBrowserClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setResult({ ok: false, message: "Sign in before editing your profile." });
+        return;
+      }
+
+      const avatar = avatarInput?.files?.[0];
+      let avatarUrl: string | undefined;
+
+      if (avatar) {
+        if (!avatar.type.startsWith("image/")) {
+          setResult({ ok: false, message: "Upload an image file for your avatar." });
+          return;
+        }
+
+        if (avatar.size > 2 * 1024 * 1024) {
+          setResult({ ok: false, message: "Keep avatars under 2 MB." });
+          return;
+        }
+
+        const extension = avatar.name.split(".").pop()?.toLowerCase() ?? "jpg";
+        const filePath = `${user.id}/avatar-${Date.now()}.${extension}`;
+        const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, avatar, {
+          cacheControl: "3600",
+          contentType: avatar.type,
+          upsert: true
+        });
+
+        if (uploadError) {
+          setResult({ ok: false, message: uploadError.message });
+          return;
+        }
+
+        const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+        avatarUrl = data.publicUrl;
+      }
+
+      const profileInsert: ProfileInsert = {
+        id: user.id,
+        display_name: values.displayName,
+        home_city: values.homeCity || null,
+        ...(avatarUrl ? { avatar_url: avatarUrl } : {})
+      };
+
+      const { error } = await supabase.from("profiles").upsert(profileInsert as never, { onConflict: "id" });
+
+      if (error) {
+        setResult({ ok: false, message: error.message });
+        return;
+      }
+
+      setResult({ ok: true, message: "Profile saved. Your passport identity is up to date." });
+      router.refresh();
     });
   }
 
