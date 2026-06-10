@@ -1,4 +1,5 @@
 import { BarChart3, MapPinned, Stamp } from "lucide-react";
+import Link from "next/link";
 import { ConfigurationCallout } from "@/components/auth/configuration-callout";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { PageShell } from "@/components/layout/page-shell";
@@ -6,6 +7,8 @@ import { PreviewPanel } from "@/components/landing/preview-panel";
 import { VisitPreview } from "@/features/visits/visit-preview";
 import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -21,7 +24,14 @@ export default async function DashboardPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Session</p>
           <p className="mt-2 text-lg">{user?.email ?? "Setup mode traveler"}</p>
         </div>
-        {isSupabaseConfigured ? <SignOutButton /> : null}
+        {isSupabaseConfigured ? (
+          <div className="flex gap-2">
+            <Link className={cn(buttonVariants({ variant: "outline" }))} href="/profile">
+              Manage profile
+            </Link>
+            <SignOutButton />
+          </div>
+        ) : null}
       </div>
       {!isSupabaseConfigured ? <div className="mb-6"><ConfigurationCallout /></div> : null}
       <div className="grid gap-5 md:grid-cols-3">

@@ -8,7 +8,7 @@ export function createSupabaseBrowserClient() {
     throw new Error("Missing Supabase browser environment variables.");
   }
 
-  return createBrowserClient<Database>(
+  return createBrowserClient<Database, "public", Database["public"]>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
