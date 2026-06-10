@@ -144,8 +144,11 @@ export type Database = {
       };
       venues: {
         Row: {
+          address: string | null;
           category: Database["public"]["Enums"]["venue_category"];
+          city_slug: string;
           city: string;
+          country_slug: string;
           country: string;
           created_at: string;
           description: string | null;
@@ -153,15 +156,21 @@ export type Database = {
           image_url: string | null;
           is_lgbtq_owned: boolean;
           is_published: boolean;
+          latitude: number | null;
+          longitude: number | null;
           name: string;
+          neighborhood: string | null;
           region: string | null;
           slug: string;
           updated_at: string;
           website_url: string | null;
         };
         Insert: {
+          address?: string | null;
           category?: Database["public"]["Enums"]["venue_category"];
+          city_slug: string;
           city: string;
+          country_slug: string;
           country: string;
           created_at?: string;
           description?: string | null;
@@ -169,15 +178,21 @@ export type Database = {
           image_url?: string | null;
           is_lgbtq_owned?: boolean;
           is_published?: boolean;
+          latitude?: number | null;
+          longitude?: number | null;
           name: string;
+          neighborhood?: string | null;
           region?: string | null;
           slug: string;
           updated_at?: string;
           website_url?: string | null;
         };
         Update: {
+          address?: string | null;
           category?: Database["public"]["Enums"]["venue_category"];
+          city_slug?: string;
           city?: string;
+          country_slug?: string;
           country?: string;
           created_at?: string;
           description?: string | null;
@@ -185,13 +200,103 @@ export type Database = {
           image_url?: string | null;
           is_lgbtq_owned?: boolean;
           is_published?: boolean;
+          latitude?: number | null;
+          longitude?: number | null;
           name?: string;
+          neighborhood?: string | null;
           region?: string | null;
           slug?: string;
           updated_at?: string;
           website_url?: string | null;
         };
         Relationships: [];
+      };
+      tags: {
+        Row: {
+          created_at: string;
+          id: string;
+          name: string;
+          slug: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          name: string;
+          slug: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          name?: string;
+          slug?: string;
+        };
+        Relationships: [];
+      };
+      venue_tags: {
+        Row: {
+          tag_id: string;
+          venue_id: string;
+        };
+        Insert: {
+          tag_id: string;
+          venue_id: string;
+        };
+        Update: {
+          tag_id?: string;
+          venue_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_tags_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tags";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_tags_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      favorites: {
+        Row: {
+          created_at: string;
+          id: string;
+          user_id: string;
+          venue_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          user_id: string;
+          venue_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          user_id?: string;
+          venue_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "favorites_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "favorites_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       visits: {
         Row: {

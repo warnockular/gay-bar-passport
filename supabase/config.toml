@@ -12,7 +12,7 @@ max_rows = 1000
 
 [auth]
 enabled = true
-site_url = "https://build-phase-1-only-of-the.vercel.app"
+site_url = "https://gay-bar-passport.vercel.app"
 additional_redirect_urls = ["http://localhost:3000", "https://*.vercel.app"]
 jwt_expiry = 3600
 enable_signup = true

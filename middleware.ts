@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const protectedRoutes = ["/dashboard", "/passport", "/journal"];
+const protectedRoutes = ["/dashboard", "/passport", "/journal", "/profile", "/auth/update-password"];
 
 // Middleware keeps protected route behavior close to the request boundary.
 // It quietly skips auth checks until Supabase env vars are configured.
@@ -47,5 +47,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/passport/:path*", "/journal/:path*"]
+  matcher: ["/dashboard/:path*", "/passport/:path*", "/journal/:path*", "/profile/:path*", "/auth/update-password"]
 };

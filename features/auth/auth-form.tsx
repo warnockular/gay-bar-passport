@@ -3,19 +3,27 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authFormSchema, type AuthFormValues } from "@/schemas/auth";
-import { signInWithPassword, signUpWithPassword, type AuthActionResult } from "@/features/auth/actions";
+import { isSupabaseConfigured } from "@/lib/env";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type AuthFormProps = {
   mode: "sign-in" | "sign-up";
 };
 
+type AuthActionResult = {
+  ok: boolean;
+  message: string;
+};
+
 export function AuthForm({ mode }: AuthFormProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<AuthActionResult | null>(null);
@@ -34,9 +42,47 @@ export function AuthForm({ mode }: AuthFormProps) {
   function onSubmit(values: AuthFormValues) {
     startTransition(async () => {
       const next = searchParams.get("next") ?? undefined;
-      const actionResult =
-        mode === "sign-in" ? await signInWithPassword(values, next) : await signUpWithPassword(values);
-      setResult(actionResult);
+
+      if (!isSupabaseConfigured) {
+        setResult({
+          ok: false,
+          message: "Supabase is not configured yet. Add your environment variables to enable auth."
+        });
+        return;
+      }
+
+      const supabase = createSupabaseBrowserClient();
+
+      if (mode === "sign-in") {
+        const { error } = await supabase.auth.signInWithPassword(values);
+
+        if (error) {
+          setResult({ ok: false, message: error.message });
+          return;
+        }
+
+        router.refresh();
+        router.push(next && next.startsWith("/") ? next : "/dashboard");
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/profile`
+        }
+      });
+
+      if (error) {
+        setResult({ ok: false, message: error.message });
+        return;
+      }
+
+      setResult({
+        ok: true,
+        message: "Account created. Check your email if confirmations are enabled, then sign in."
+      });
     });
   }
 

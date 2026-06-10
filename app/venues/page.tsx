@@ -1,36 +1,54 @@
-import Image from "next/image";
-import { Search, SlidersHorizontal } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { VenueList } from "@/features/venues/venue-list";
-import { unsplashImages } from "@/services/unsplash";
+import { VenueDirectory } from "@/features/venues/venue-directory";
+import { getCurrentUser } from "@/lib/auth";
+import { listCountries, listFavoriteVenueIds, listPublishedVenues, listTags } from "@/services/venues";
+import type { Enums } from "@/types/database";
 
-export default function VenuesPage() {
+const categories: Enums<"venue_category">[] = ["bar", "club", "lounge", "cafe", "performance", "community"];
+
+type VenuesPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function valueFromSearchParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function categoryFromSearchParam(value: string | undefined): Enums<"venue_category"> | undefined {
+  return categories.includes(value as Enums<"venue_category">) ? (value as Enums<"venue_category">) : undefined;
+}
+
+export default async function VenuesPage({ searchParams }: VenuesPageProps) {
+  const params = (await searchParams) ?? {};
+  const category = categoryFromSearchParam(valueFromSearchParam(params.category));
+  const countrySlug = valueFromSearchParam(params.country);
+  const tag = valueFromSearchParam(params.tag);
+  const query = valueFromSearchParam(params.q);
+  const user = await getCurrentUser();
+  const [venues, tags, countries, favoriteIds] = await Promise.all([
+    listPublishedVenues({ category, countrySlug, query, tag }),
+    listTags(),
+    listCountries(),
+    listFavoriteVenueIds(user?.id)
+  ]);
+
   return (
     <PageShell
       eyebrow="Venues"
-      title="A polished frame for future LGBTQ+ venue discovery."
-      copy="Phase 2 introduces the venue data service and query hook. Full search, filtering, detail pages, and admin curation are still reserved for later phases."
+      title="Browse LGBTQ+ venues around the world."
+      copy="Search the first curated directory by city, country, venue type, and travel mood tags."
     >
-      <div className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
-        <Card className="overflow-hidden bg-card/85">
-          <Image src={unsplashImages.interior.src} alt={unsplashImages.interior.alt} width={1200} height={700} className="h-80 w-full object-cover" />
-          <CardHeader>
-            <CardTitle className="font-serif text-3xl">Discovery tools placeholder</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-md border border-border bg-background/60 p-4">
-              <Search className="h-5 w-5 text-sage" aria-hidden="true" />
-              <p className="mt-3 text-sm font-semibold">Search shell</p>
-            </div>
-            <div className="rounded-md border border-border bg-background/60 p-4">
-              <SlidersHorizontal className="h-5 w-5 text-terracotta" aria-hidden="true" />
-              <p className="mt-3 text-sm font-semibold">Filter shell</p>
-            </div>
-          </CardContent>
-        </Card>
-        <VenueList />
-      </div>
+      <VenueDirectory
+        categories={categories}
+        countries={countries}
+        favoriteIds={favoriteIds}
+        isSignedIn={Boolean(user)}
+        selectedCategory={category}
+        selectedCountry={countrySlug}
+        selectedTag={tag}
+        tags={tags}
+        venues={venues}
+      />
     </PageShell>
   );
 }

@@ -1,24 +1,21 @@
 import Link from "next/link";
-import { Suspense } from "react";
-import { AuthForm } from "@/features/auth/auth-form";
+import { PasswordResetForm } from "@/features/auth/password-reset-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function SignUpPage() {
+export default function ResetPasswordPage() {
   return (
     <section className="container grid min-h-[calc(100vh-8rem)] place-items-center py-16">
       <Card className="w-full max-w-md bg-card/90">
         <CardHeader>
-          <CardTitle className="font-serif text-3xl">Open a passport</CardTitle>
+          <CardTitle className="font-serif text-3xl">Reset your passport key</CardTitle>
           <CardDescription>
-            Create your account. Supabase will prepare a profile row for your protected travel journal.
+            Send a secure reset link to the email connected to your Gay Bar Passport account.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Suspense fallback={<p className="text-sm text-muted-foreground">Loading sign-up form...</p>}>
-            <AuthForm mode="sign-up" />
-          </Suspense>
+          <PasswordResetForm />
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Already started?{" "}
+            Remembered it?{" "}
             <Link href="/auth/sign-in" className="font-semibold text-primary hover:underline">
               Sign in
             </Link>

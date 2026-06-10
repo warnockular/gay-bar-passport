@@ -1,16 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { isSupabaseConfigured } from "@/lib/env";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { fallbackVenues, listPublishedVenues } from "@/services/venues";
+import { fallbackVenues } from "@/services/venues";
 
-// First public TanStack Query hook. It can read Supabase data or fall back to static seed-like data.
+// Client-side venue previews can use this lightweight fallback hook; Phase 4 pages fetch directory data on the server.
 export function useVenues() {
   return useQuery({
-    enabled: isSupabaseConfigured,
-    initialData: isSupabaseConfigured ? undefined : fallbackVenues,
+    initialData: fallbackVenues,
     queryKey: ["venues", "published"],
-    queryFn: () => listPublishedVenues(createSupabaseBrowserClient())
+    queryFn: async () => fallbackVenues
   });
 }
