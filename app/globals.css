@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 42 45% 93%;
+    --foreground: 200 15% 15%;
+    --card: 42 44% 96%;
+    --card-foreground: 200 15% 15%;
+    --popover: 42 44% 96%;
+    --popover-foreground: 200 15% 15%;
+    --primary: 145 19% 36%;
+    --primary-foreground: 42 44% 96%;
+    --secondary: 16 41% 55%;
+    --secondary-foreground: 42 44% 96%;
+    --muted: 44 29% 86%;
+    --muted-foreground: 200 8% 42%;
+    --accent: 351 34% 64%;
+    --accent-foreground: 200 15% 15%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 42 44% 96%;
+    --border: 37 24% 76%;
+    --input: 37 24% 76%;
+    --ring: 145 19% 36%;
+    --sage: 145 19% 36%;
+    --terracotta: 16 41% 55%;
+    --ember: 24 61% 46%;
+    --rose: 351 34% 64%;
+    --cream: 42 45% 93%;
+    --charcoal: 200 15% 15%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at 20% 10%, hsl(var(--rose) / 0.14), transparent 28rem),
+      radial-gradient(circle at 85% 15%, hsl(var(--sage) / 0.13), transparent 24rem),
+      linear-gradient(90deg, hsl(var(--charcoal) / 0.035) 1px, transparent 1px),
+      linear-gradient(hsl(var(--charcoal) / 0.025) 1px, transparent 1px);
+    background-size: auto, auto, 34px 34px, 34px 34px;
+  }
+
+  ::selection {
+    background: hsl(var(--terracotta) / 0.35);
+  }
+}
+
+@layer components {
+  .passport-border {
+    background-image:
+      linear-gradient(90deg, hsl(var(--charcoal) / 0.3) 50%, transparent 50%),
+      linear-gradient(90deg, hsl(var(--charcoal) / 0.3) 50%, transparent 50%),
+      linear-gradient(0deg, hsl(var(--charcoal) / 0.3) 50%, transparent 50%),
+      linear-gradient(0deg, hsl(var(--charcoal) / 0.3) 50%, transparent 50%);
+    background-position: top, bottom, left, right;
+    background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+    background-size: 18px 1px, 18px 1px, 1px 18px, 1px 18px;
+  }
+}

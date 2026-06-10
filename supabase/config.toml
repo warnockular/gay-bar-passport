@@ -1,0 +1,31 @@
+# Supabase CLI project config placeholder.
+# Link this folder to a real project with `supabase link --project-ref <project-ref>`.
+
+project_id = "fzaqoejmsfwgnppuasqj"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+site_url = "https://build-phase-1-only-of-the.vercel.app"
+additional_redirect_urls = ["http://localhost:3000", "https://*.vercel.app"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 8
+otp_expiry = 3600

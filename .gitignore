@@ -1,0 +1,28 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# Next.js
+.next
+out
+
+# environment
+.env
+.env.local
+.env.*.local
+
+# local runtime artifacts
+work
+outputs
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# system
+.DS_Store
+tsconfig.tsbuildinfo
+.vercel
+supabase/.temp
