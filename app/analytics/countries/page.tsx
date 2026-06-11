@@ -1,10 +1,17 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { BarList } from "@/features/analytics/analytics-widgets";
 import { requireUser } from "@/lib/auth";
 import { getTravelAnalytics } from "@/services/analytics";
+
+export const metadata: Metadata = {
+  title: "Country Analytics | Gay Bar Passport",
+  description: "Review private country-level travel insights from your passport activity.",
+  robots: { index: false, follow: false }
+};
 
 export default async function AnalyticsCountriesPage() {
   const user = await requireUser();

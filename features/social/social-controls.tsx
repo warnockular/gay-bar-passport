@@ -9,7 +9,7 @@ export function FollowButton({ isFollowing, profileId }: { isFollowing: boolean;
 
   return (
     <form action={action}>
-      <Button type="submit" variant={isFollowing ? "outline" : "default"}>
+      <Button type="submit" variant={isFollowing ? "outline" : "default"} aria-label={isFollowing ? "Unfollow this traveler" : "Follow this traveler"}>
         <UserPlus className="h-4 w-4" aria-hidden="true" />
         {isFollowing ? "Following" : "Follow"}
       </Button>
@@ -22,7 +22,7 @@ export function LikeButton({ entry }: { entry: SocialJournalEntry }) {
 
   return (
     <form action={action}>
-      <Button type="submit" variant={entry.likedByViewer ? "default" : "outline"} size="sm">
+      <Button type="submit" variant={entry.likedByViewer ? "default" : "outline"} size="sm" aria-label={entry.likedByViewer ? `Unlike ${entry.title}` : `Like ${entry.title}`}>
         <Heart className="h-4 w-4" aria-hidden="true" />
         {entry.likeCount}
       </Button>
@@ -35,7 +35,10 @@ export function CommentForm({ entryId }: { entryId: string }) {
 
   return (
     <form action={action} className="space-y-3">
-      <Textarea name="body" placeholder="Add a thoughtful note..." required maxLength={1000} />
+      <label htmlFor={`comment-${entryId}`} className="sr-only">
+        Add a comment
+      </label>
+      <Textarea id={`comment-${entryId}`} name="body" placeholder="Add a thoughtful note..." required maxLength={1000} />
       <Button type="submit" size="sm">
         <MessageCircle className="h-4 w-4" aria-hidden="true" />
         Comment
@@ -47,7 +50,7 @@ export function CommentForm({ entryId }: { entryId: string }) {
 export function MarkNotificationsReadButton() {
   return (
     <form action={markNotificationsRead}>
-      <Button type="submit" variant="outline">
+      <Button type="submit" variant="outline" aria-label="Mark all notifications as read">
         <Bell className="h-4 w-4" aria-hidden="true" />
         Mark all read
       </Button>

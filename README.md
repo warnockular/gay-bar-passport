@@ -77,7 +77,13 @@ GitHub Actions runs:
 - `pnpm lint`
 - `pnpm build`
 
-Build requires network access for Google Fonts.
+Phase 10 Pass 2 keeps CI deferred while the pnpm 11 build-script approval issue is resolved. The current failure is:
+
+```text
+ERR_PNPM_IGNORED_BUILDS: sharp@0.34.5, unrs-resolver@1.12.2
+```
+
+The production-appropriate fix should explicitly approve only the required native dependency build scripts instead of disabling script protection globally. Build also requires network access for Google Fonts.
 
 ## Project Structure
 
@@ -105,20 +111,36 @@ Run those commands from a local terminal with normal repository permissions.
 
 ## Known Limitations
 
-- Analytics map/heat map needs future UX polish.
-- Comment workflow needs more interaction feedback.
+- GitHub Actions is deferred until pnpm build-script approvals for `sharp` and `unrs-resolver` are finalized.
+- Analytics map/heat map has a practical implementation but still needs future UX polish.
+- Comment workflow has accessible labels, but pending/success feedback still needs refinement.
 - Notifications need deeper cross-user verification.
 - Feed cards need stronger visual hierarchy.
-- Dashboard/profile navigation needs future IA cleanup.
+- Dashboard/profile navigation is usable, but future information architecture cleanup would help.
 - Mobile responsiveness needs a full review pass.
 - Passport stamp visuals and achievement presentation need refinement.
 - Journal editor/photo galleries need richer editing controls.
 - Admin workflows need deeper moderation QA.
 
-## Phase 10 Pass 1 Backlog
+## Phase 10 Status
+
+Pass 1 added foundational loading/error/empty states, metadata, image handling, and documentation.
+
+Pass 2 added:
+
+- responsive primary navigation that works on mobile
+- accessible labels and status messages for key venue, visit, journal, and social controls
+- `noindex` metadata for authenticated/private routes that were missing it
+- defensive limits for venue, journal, analytics, and form option queries
+- clearer server action error messages for visit and journal uploads
+- mobile hardening for venue cards, dashboard actions, and admin navigation
+
+## Phase 10 Backlog
 
 - Add route-level error boundaries where server actions are most complex.
 - Add automated accessibility checks.
-- Move from deprecated `next lint` to the ESLint CLI before Next 16.
+- Resolve pnpm 11 CI build-script approvals.
+- Move from deprecated `next lint` to the ESLint CLI before Next 16 if the project upgrades into that requirement.
 - Add smoke tests for auth, visit logging, journal, social, analytics, and admin access.
 - Add production log/monitoring integration.
+- Perform a full mobile QA pass across authenticated flows.

@@ -14,7 +14,8 @@ type UserProfilePageProps = {
 
 export const metadata: Metadata = {
   title: "Traveler Profile | Gay Bar Passport",
-  description: "View a Gay Bar Passport traveler profile and public journal entries."
+  description: "View a Gay Bar Passport traveler profile and public journal entries.",
+  robots: { index: false, follow: false }
 };
 
 export default async function UserProfilePage({ params }: UserProfilePageProps) {

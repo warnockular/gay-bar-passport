@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { JournalForm } from "@/features/journal/journal-form";
 import { requireUser } from "@/lib/auth";
 import { getJournalFormOptions } from "@/services/journal";
+
+export const metadata: Metadata = {
+  title: "New Journal Entry | Gay Bar Passport",
+  robots: { index: false, follow: false }
+};
 
 export default async function NewJournalEntryPage() {
   const user = await requireUser();

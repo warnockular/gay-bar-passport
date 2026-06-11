@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { JournalForm } from "@/features/journal/journal-form";
@@ -7,6 +8,11 @@ import { getJournalEntry, getJournalFormOptions } from "@/services/journal";
 
 type EditJournalEntryPageProps = {
   params: Promise<{ entryId: string }>;
+};
+
+export const metadata: Metadata = {
+  title: "Edit Journal Entry | Gay Bar Passport",
+  robots: { index: false, follow: false }
 };
 
 export default async function EditJournalEntryPage({ params }: EditJournalEntryPageProps) {

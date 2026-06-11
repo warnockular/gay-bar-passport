@@ -57,7 +57,8 @@ export async function listJournalEntries(userId: string, filters: { citySlug?: s
     .select("*, venues(id, name, slug, city, city_slug, country, country_slug, category, image_url), visits(*, venues(name, slug, city, country)), favorites(*, venues(name, slug, city, country)), journal_photos(*)")
     .eq("user_id", userId)
     .order("entry_date", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   if (filters.countrySlug) query = query.eq("country_slug", filters.countrySlug);
   if (filters.citySlug) query = query.eq("city_slug", filters.citySlug);
@@ -98,9 +99,9 @@ export async function getJournalFormOptions(userId: string): Promise<JournalForm
 
   const supabase = await createSupabaseServerClient();
   const [venues, visits, favorites] = await Promise.all([
-    supabase.from("venues").select("id, name, slug, city, city_slug, country, country_slug").eq("is_published", true).order("name"),
-    supabase.from("visits").select("*, venues(name, slug, city, city_slug, country, country_slug)").eq("user_id", userId).order("visited_on", { ascending: false }),
-    supabase.from("favorites").select("*, venues(name, slug, city, city_slug, country, country_slug)").eq("user_id", userId).order("created_at", { ascending: false })
+    supabase.from("venues").select("id, name, slug, city, city_slug, country, country_slug").eq("is_published", true).order("name").limit(100),
+    supabase.from("visits").select("*, venues(name, slug, city, city_slug, country, country_slug)").eq("user_id", userId).order("visited_on", { ascending: false }).limit(100),
+    supabase.from("favorites").select("*, venues(name, slug, city, city_slug, country, country_slug)").eq("user_id", userId).order("created_at", { ascending: false }).limit(100)
   ]);
 
   return {

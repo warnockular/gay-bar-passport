@@ -23,9 +23,9 @@ export function AdminNav({ role }: { role: string }) {
         </div>
         <Badge>{role}</Badge>
       </div>
-      <nav className="flex flex-wrap gap-3 text-sm font-semibold text-muted-foreground">
+      <nav aria-label="Admin" className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 text-sm font-semibold text-muted-foreground md:flex-wrap md:overflow-visible md:pb-0">
         {adminRoutes.map((route) => (
-          <Link key={route.href} href={route.href} className="rounded-md border border-border bg-background/70 px-3 py-2 hover:text-primary">
+          <Link key={route.href} href={route.href} className="shrink-0 rounded-md border border-border bg-background/70 px-3 py-2 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             {route.label}
           </Link>
         ))}

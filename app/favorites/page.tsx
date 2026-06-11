@@ -1,10 +1,17 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { EmptyState } from "@/components/state/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { VenueCard } from "@/features/venues/venue-card";
 import { requireUser } from "@/lib/auth";
 import { listFavoriteVenueIds, listFavoriteVenues } from "@/services/venues";
+
+export const metadata: Metadata = {
+  title: "Favorites | Gay Bar Passport",
+  description: "Review your private saved LGBTQ+ venue shortlist.",
+  robots: { index: false, follow: false }
+};
 
 export default async function FavoritesPage() {
   const user = await requireUser();

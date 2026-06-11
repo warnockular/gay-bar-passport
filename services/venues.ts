@@ -230,7 +230,8 @@ export async function listPublishedVenues(filters: VenueFilters = {}): Promise<V
     .eq("is_published", true)
     .order("country", { ascending: true })
     .order("city", { ascending: true })
-    .order("name", { ascending: true });
+    .order("name", { ascending: true })
+    .limit(100);
 
   if (filters.query) {
     const search = `%${filters.query.trim()}%`;
@@ -285,7 +286,7 @@ export async function listFavoriteVenueIds(userId?: string | null) {
   if (!userId || !isSupabaseConfigured) return [];
 
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("favorites").select("venue_id").eq("user_id", userId);
+  const { data, error } = await supabase.from("favorites").select("venue_id").eq("user_id", userId).limit(200);
 
   if (error) return [];
 

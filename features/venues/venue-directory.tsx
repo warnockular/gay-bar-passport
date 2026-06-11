@@ -40,10 +40,16 @@ export function VenueDirectory({
       <Card className="bg-card/85 p-4">
         <form className="grid gap-3 md:grid-cols-[1fr_12rem_12rem_12rem_auto]" action="/venues">
           <div className="relative">
+            <label htmlFor="venue-search" className="sr-only">
+              Search venues, cities, or neighborhoods
+            </label>
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <Input name="q" placeholder="Search venues, cities, neighborhoods" className="pl-9" />
+            <Input id="venue-search" name="q" placeholder="Search venues, cities, neighborhoods" className="pl-9" />
           </div>
-          <select className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" name="category" defaultValue={selectedCategory ?? ""}>
+          <label htmlFor="venue-category" className="sr-only">
+            Filter by venue type
+          </label>
+          <select id="venue-category" className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="category" defaultValue={selectedCategory ?? ""}>
             <option value="">All types</option>
             {categories.map((category) => (
               <option key={category} value={category}>
@@ -51,7 +57,10 @@ export function VenueDirectory({
               </option>
             ))}
           </select>
-          <select className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" name="country" defaultValue={selectedCountry ?? ""}>
+          <label htmlFor="venue-country" className="sr-only">
+            Filter by country
+          </label>
+          <select id="venue-country" className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="country" defaultValue={selectedCountry ?? ""}>
             <option value="">All countries</option>
             {countries.map((country) => (
               <option key={country.slug} value={country.slug}>
@@ -59,7 +68,10 @@ export function VenueDirectory({
               </option>
             ))}
           </select>
-          <select className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" name="tag" defaultValue={selectedTag ?? ""}>
+          <label htmlFor="venue-tag" className="sr-only">
+            Filter by tag
+          </label>
+          <select id="venue-tag" className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="tag" defaultValue={selectedTag ?? ""}>
             <option value="">All tags</option>
             {tags.map((tag) => (
               <option key={tag.slug} value={tag.slug}>

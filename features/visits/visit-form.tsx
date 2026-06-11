@@ -79,14 +79,15 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="visitedOn">Visit date</Label>
-          <Input id="visitedOn" type="date" {...register("visitedOn")} />
-          {errors.visitedOn ? <p className="text-sm text-destructive">{errors.visitedOn.message}</p> : null}
+          <Input id="visitedOn" type="date" aria-invalid={Boolean(errors.visitedOn)} {...register("visitedOn")} />
+          {errors.visitedOn ? <p className="text-sm text-destructive" role="alert">{errors.visitedOn.message}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="rating">Rating</Label>
           <select
             id="rating"
             className="flex h-10 w-full rounded-md border border-input bg-background/80 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-invalid={Boolean(errors.rating)}
             {...register("rating")}
           >
             {[5, 4, 3, 2, 1].map((rating) => (
@@ -95,7 +96,7 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
               </option>
             ))}
           </select>
-          {errors.rating ? <p className="text-sm text-destructive">{errors.rating.message}</p> : null}
+          {errors.rating ? <p className="text-sm text-destructive" role="alert">{errors.rating.message}</p> : null}
         </div>
       </div>
       <div className="space-y-2">
@@ -114,8 +115,8 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="privateNotes">Private notes</Label>
-        <Textarea id="privateNotes" placeholder="What made this stop memorable?" {...register("privateNotes")} />
-        {errors.privateNotes ? <p className="text-sm text-destructive">{errors.privateNotes.message}</p> : null}
+        <Textarea id="privateNotes" placeholder="What made this stop memorable?" aria-invalid={Boolean(errors.privateNotes)} {...register("privateNotes")} />
+        {errors.privateNotes ? <p className="text-sm text-destructive" role="alert">{errors.privateNotes.message}</p> : null}
       </div>
       <div className="space-y-2">
         <Label htmlFor="visitPhotos" className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-primary">
@@ -133,7 +134,7 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
         />
         {photoLabel ? <p className="text-xs text-muted-foreground">{photoLabel}</p> : null}
       </div>
-      {result ? <p className={result.ok ? "text-sm text-sage" : "text-sm text-destructive"}>{result.message}</p> : null}
+      {result ? <p className={result.ok ? "text-sm text-sage" : "text-sm text-destructive"} role="status">{result.message}</p> : null}
       <Button type="submit" disabled={isPending}>
         {mode === "create" ? <Stamp className="h-4 w-4" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
         {isPending ? "Saving..." : mode === "create" ? "Log visit" : "Save visit"}

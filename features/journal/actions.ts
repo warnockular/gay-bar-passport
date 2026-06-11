@@ -35,13 +35,13 @@ async function uploadJournalPhotos(userId: string, entryId: string, photos: File
       upsert: false
     });
 
-    if (error) return { ok: false, message: error.message };
+    if (error) return { ok: false, message: `Photo upload failed: ${error.message}` };
     rows.push({ entry_id: entryId, storage_path: storagePath, user_id: userId });
   }
 
   if (rows.length) {
     const { error } = await supabase.from("journal_photos").insert(rows as never);
-    if (error) return { ok: false, message: error.message };
+    if (error) return { ok: false, message: `Photo record could not be saved: ${error.message}` };
   }
 
   return { ok: true, message: "" };
@@ -93,7 +93,7 @@ export async function createJournalEntry(formData: FormData): Promise<JournalAct
   const { data, error } = await supabase.from("journal_entries").insert(entryPayload(user.id, parsed.data) as never).select("id").single();
   const entry = data as Pick<Tables<"journal_entries">, "id"> | null;
 
-  if (error || !entry) return { ok: false, message: error?.message ?? "Journal entry could not be saved." };
+  if (error || !entry) return { ok: false, message: error?.message ? `Journal entry could not be saved: ${error.message}` : "Journal entry could not be saved." };
 
   const photos = formData.getAll("photos").filter((item): item is File => item instanceof File && item.size > 0);
   const photoResult = await uploadJournalPhotos(user.id, entry.id, photos);
@@ -114,7 +114,7 @@ export async function updateJournalEntry(entryId: string, formData: FormData): P
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("journal_entries").update(entryPayload(user.id, parsed.data) as never).eq("id", entryId).eq("user_id", user.id);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: `Journal entry could not be updated: ${error.message}` };
 
   const photos = formData.getAll("photos").filter((item): item is File => item instanceof File && item.size > 0);
   const photoResult = await uploadJournalPhotos(user.id, entryId, photos);
@@ -133,7 +133,7 @@ export async function deleteJournalEntry(entryId: string): Promise<JournalAction
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("journal_entries").delete().eq("id", entryId).eq("user_id", user.id);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: `Journal entry could not be deleted: ${error.message}` };
 
   revalidatePath("/journal");
   redirect("/journal");

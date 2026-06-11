@@ -45,14 +45,14 @@ async function uploadVisitPhotos(userId: string, visitId: string, photos: File[]
       upsert: false
     });
 
-    if (error) return { ok: false, message: error.message };
+    if (error) return { ok: false, message: `Photo upload failed: ${error.message}` };
 
     rows.push({ storage_path: storagePath, user_id: userId, visit_id: visitId });
   }
 
   if (rows.length) {
     const { error } = await supabase.from("visit_photos").insert(rows as never);
-    if (error) return { ok: false, message: error.message };
+    if (error) return { ok: false, message: `Photo record could not be saved: ${error.message}` };
   }
 
   return { ok: true, message: "" };
@@ -96,7 +96,7 @@ export async function createVisit(venueId: string, venueSlug: string, formData: 
   const visit = visitData as Pick<Tables<"visits">, "id"> | null;
 
   if (error || !visit) {
-    return { ok: false, message: error?.message ?? "Visit could not be saved." };
+    return { ok: false, message: error?.message ? `Visit could not be saved: ${error.message}` : "Visit could not be saved." };
   }
 
   if (venue) {
@@ -152,7 +152,7 @@ export async function updateVisit(visitId: string, formData: FormData): Promise<
     .eq("id", visitId)
     .eq("user_id", user.id);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: `Visit could not be updated: ${error.message}` };
 
   const photos = formData.getAll("photos").filter((item): item is File => item instanceof File && item.size > 0);
   const photoResult = await uploadVisitPhotos(user.id, visitId, photos);

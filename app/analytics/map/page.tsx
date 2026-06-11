@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { Card } from "@/components/ui/card";
 import { DestinationHeatMap, TravelMap } from "@/features/analytics/analytics-widgets";
 import { requireUser } from "@/lib/auth";
 import { getTravelAnalytics } from "@/services/analytics";
+
+export const metadata: Metadata = {
+  title: "Travel Map | Gay Bar Passport",
+  description: "View a private map-style summary of your visited venues and destinations.",
+  robots: { index: false, follow: false }
+};
 
 export default async function AnalyticsMapPage() {
   const user = await requireUser();

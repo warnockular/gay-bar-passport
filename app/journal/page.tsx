@@ -1,5 +1,6 @@
 import { BookOpen, MapPinned, PenLine } from "lucide-react";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ConfigurationCallout } from "@/components/auth/configuration-callout";
 import { PageShell } from "@/components/layout/page-shell";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,12 @@ import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { listJournalDestinations, listJournalEntries } from "@/services/journal";
+
+export const metadata: Metadata = {
+  title: "Journal | Gay Bar Passport",
+  description: "Write and manage private queer travel journal entries.",
+  robots: { index: false, follow: false }
+};
 
 export default async function JournalPage() {
   const user = await requireUser();

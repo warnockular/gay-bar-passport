@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { Card } from "@/components/ui/card";
 import { ActivityChart, BarList, RecentActivity } from "@/features/analytics/analytics-widgets";
 import { requireUser } from "@/lib/auth";
 import { getTravelAnalytics } from "@/services/analytics";
+
+export const metadata: Metadata = {
+  title: "Activity Analytics | Gay Bar Passport",
+  description: "Review private visit, journal, and category activity over time.",
+  robots: { index: false, follow: false }
+};
 
 export default async function AnalyticsActivityPage() {
   const user = await requireUser();

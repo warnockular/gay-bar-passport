@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { Users } from "lucide-react";
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FollowButton } from "@/features/social/social-controls";
 import { requireUser } from "@/lib/auth";
 import { listPublicProfiles } from "@/services/social";
+
+export const metadata: Metadata = {
+  title: "Travelers | Gay Bar Passport",
+  description: "Discover Gay Bar Passport traveler profiles and follow public journeys.",
+  robots: { index: false, follow: false }
+};
 
 export default async function UsersPage() {
   const user = await requireUser();

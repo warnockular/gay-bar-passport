@@ -92,28 +92,28 @@ export function JournalForm({ entry, mode, options }: JournalFormProps) {
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="title">Title</Label>
-          <Input id="title" placeholder="A golden hour at Velvet Atlas" {...register("title")} />
-          {errors.title ? <p className="text-sm text-destructive">{errors.title.message}</p> : null}
+          <Input id="title" placeholder="A golden hour at Velvet Atlas" aria-invalid={Boolean(errors.title)} {...register("title")} />
+          {errors.title ? <p className="text-sm text-destructive" role="alert">{errors.title.message}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="entryDate">Date</Label>
-          <Input id="entryDate" type="date" {...register("entryDate")} />
-          {errors.entryDate ? <p className="text-sm text-destructive">{errors.entryDate.message}</p> : null}
+          <Input id="entryDate" type="date" aria-invalid={Boolean(errors.entryDate)} {...register("entryDate")} />
+          {errors.entryDate ? <p className="text-sm text-destructive" role="alert">{errors.entryDate.message}</p> : null}
         </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="country">Country</Label>
-          <Input id="country" placeholder="Portugal" {...register("country", { onChange: (event) => setValue("countrySlug", slugify(event.target.value)) })} />
+          <Input id="country" placeholder="Portugal" aria-invalid={Boolean(errors.country)} {...register("country", { onChange: (event) => setValue("countrySlug", slugify(event.target.value)) })} />
           <input type="hidden" {...register("countrySlug")} />
-          {errors.country ? <p className="text-sm text-destructive">{errors.country.message}</p> : null}
+          {errors.country ? <p className="text-sm text-destructive" role="alert">{errors.country.message}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="city">City</Label>
-          <Input id="city" placeholder="Lisbon" {...register("city", { onChange: (event) => setValue("citySlug", slugify(event.target.value)) })} />
+          <Input id="city" placeholder="Lisbon" aria-invalid={Boolean(errors.city)} {...register("city", { onChange: (event) => setValue("citySlug", slugify(event.target.value)) })} />
           <input type="hidden" {...register("citySlug")} />
-          {errors.city ? <p className="text-sm text-destructive">{errors.city.message}</p> : null}
+          {errors.city ? <p className="text-sm text-destructive" role="alert">{errors.city.message}</p> : null}
         </div>
       </div>
 
@@ -155,8 +155,8 @@ export function JournalForm({ entry, mode, options }: JournalFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="body">Entry</Label>
-        <Textarea id="body" className="min-h-64 font-mono leading-7" placeholder="Write with simple Markdown-style headings, bullets, and paragraphs." {...register("body")} />
-        {errors.body ? <p className="text-sm text-destructive">{errors.body.message}</p> : null}
+        <Textarea id="body" className="min-h-64 font-mono leading-7" placeholder="Write with simple Markdown-style headings, bullets, and paragraphs." aria-invalid={Boolean(errors.body)} {...register("body")} />
+        {errors.body ? <p className="text-sm text-destructive" role="alert">{errors.body.message}</p> : null}
       </div>
 
       <label className="flex items-start gap-3 rounded-md border border-border bg-background/70 p-4 text-sm leading-6">
@@ -176,7 +176,7 @@ export function JournalForm({ entry, mode, options }: JournalFormProps) {
         {photoLabel ? <p className="text-xs text-muted-foreground">{photoLabel}</p> : null}
       </div>
 
-      {result ? <p className={result.ok ? "text-sm text-sage" : "text-sm text-destructive"}>{result.message}</p> : null}
+      {result ? <p className={result.ok ? "text-sm text-sage" : "text-sm text-destructive"} role="status">{result.message}</p> : null}
       <Button type="submit" disabled={isPending}>
         <Save className="h-4 w-4" aria-hidden="true" />
         {isPending ? "Saving..." : mode === "create" ? "Save entry" : "Update entry"}

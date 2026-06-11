@@ -31,7 +31,7 @@ export default async function DashboardPage() {
           <p className="mt-2 text-lg">{user?.email ?? "Setup mode traveler"}</p>
         </div>
         {isSupabaseConfigured ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link className={cn(buttonVariants({ variant: "outline" }))} href="/analytics">
               <Globe2 className="h-4 w-4" aria-hidden="true" />
               Travel analytics

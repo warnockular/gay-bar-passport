@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,12 @@ import { Card } from "@/components/ui/card";
 import { MarkNotificationsReadButton } from "@/features/social/social-controls";
 import { requireUser } from "@/lib/auth";
 import { listNotifications } from "@/services/social";
+
+export const metadata: Metadata = {
+  title: "Notifications | Gay Bar Passport",
+  description: "Review follows, likes, and comments on your Gay Bar Passport activity.",
+  robots: { index: false, follow: false }
+};
 
 function notificationCopy(type: string) {
   if (type === "new_follower") return "started following you";

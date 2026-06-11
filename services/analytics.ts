@@ -101,7 +101,8 @@ export async function getTravelAnalytics(userId: string): Promise<TravelAnalytic
       .from("visits")
       .select("*, venues(id, name, slug, city, city_slug, country, country_slug, category, latitude, longitude)")
       .eq("user_id", userId)
-      .order("visited_on", { ascending: false }),
+      .order("visited_on", { ascending: false })
+      .limit(500),
     supabase.from("favorites").select("id", { count: "exact", head: true }).eq("user_id", userId),
     supabase.from("passport_stamps").select("id", { count: "exact", head: true }).eq("user_id", userId),
     supabase.from("user_achievements").select("id", { count: "exact", head: true }).eq("user_id", userId),
@@ -109,7 +110,8 @@ export async function getTravelAnalytics(userId: string): Promise<TravelAnalytic
       .from("journal_entries")
       .select("id, title, entry_date, created_at, country, country_slug, city, city_slug")
       .eq("user_id", userId)
-      .order("entry_date", { ascending: false }),
+      .order("entry_date", { ascending: false })
+      .limit(500),
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase.from("journal_entries").select("id, country, country_slug, city, city_slug", { count: "exact" }).eq("is_private", false)
   ]);

@@ -17,17 +17,17 @@ export function VenueCard({ favoriteIds = [], isSignedIn = false, venue }: Venue
     <Card className="overflow-hidden bg-card/90">
       <div className="grid gap-0 md:grid-cols-[240px_1fr]">
         {venue.image_url ? (
-          <Link href={`/venues/${venue.slug}`} className="relative block h-64 md:h-full">
+          <Link href={`/venues/${venue.slug}`} className="relative block h-56 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-64 md:h-full">
             <Image src={venue.image_url} alt={`${venue.name} venue preview`} fill className="object-cover" sizes="(min-width: 768px) 240px, 100vw" />
           </Link>
         ) : null}
         <div className="space-y-4 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <Link href={`/venues/${venue.slug}`} className="font-serif text-3xl font-semibold hover:text-primary">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <Link href={`/venues/${venue.slug}`} className="font-serif text-2xl font-semibold hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-3xl">
                 {venue.name}
               </Link>
-              <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4 text-rose" aria-hidden="true" />
                 <Link className="hover:text-primary" href={`/countries/${venue.country_slug}/${venue.city_slug}`}>
                   {venue.city}
