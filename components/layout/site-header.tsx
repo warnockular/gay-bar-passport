@@ -8,10 +8,12 @@ import { cn } from "@/lib/utils";
 import { getProfile } from "@/services/profiles";
 import type { AppRoute } from "@/types/navigation";
 
-const desktopRoutes: AppRoute[] = [
+const baseDesktopRoutes: AppRoute[] = [
   { href: "/venues", label: "Venues" },
   { href: "/passport", label: "Passport" },
   { href: "/journal", label: "Journal" },
+  { href: "/feed", label: "Feed" },
+  { href: "/users", label: "Community" },
   { href: "/analytics", label: "Analytics" },
   { href: "/dashboard", label: "Dashboard" }
 ];
@@ -20,12 +22,14 @@ export async function SiteHeader() {
   const user = await getCurrentUser();
   const profile = user ? await getProfile(user.id).catch(() => null) : null;
   const isAdmin = profile?.role === "admin" || profile?.role === "moderator";
+  const desktopRoutes: AppRoute[] = [...baseDesktopRoutes, ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])];
   const mobileRoutes: AppRoute[] = [
     { href: "/", label: "Home" },
     { href: "/venues", label: "Venues" },
     { href: "/passport", label: "Passport" },
     { href: "/journal", label: "Journal" },
     { href: "/feed", label: "Feed" },
+    { href: "/users", label: "Community" },
     { href: "/analytics", label: "Analytics" },
     { href: "/profile", label: "Profile" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])
@@ -40,7 +44,7 @@ export async function SiteHeader() {
           </span>
           <span className="truncate font-serif text-xl font-semibold tracking-normal sm:text-2xl">Gay Bar Passport</span>
         </Link>
-        <nav aria-label="Primary" className="hidden items-center gap-7 text-sm font-medium text-muted-foreground md:flex">
+        <nav aria-label="Primary" className="hidden items-center gap-4 text-sm font-medium text-muted-foreground lg:gap-6 md:flex">
           {desktopRoutes.map((route) => (
             <Link key={route.href} href={route.href} className="shrink-0 rounded-md px-1 py-2 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {route.label}
@@ -65,7 +69,7 @@ export async function SiteHeader() {
             </Link>
           </div>
         )}
-        <MobileNav routes={mobileRoutes} />
+        <MobileNav routes={mobileRoutes} isSignedIn={Boolean(user)} />
       </div>
     </header>
   );
