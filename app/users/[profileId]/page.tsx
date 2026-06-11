@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { BookOpen } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
 import { Card } from "@/components/ui/card";
@@ -9,6 +10,11 @@ import { getPublicProfile, listPublicJournalEntries } from "@/services/social";
 
 type UserProfilePageProps = {
   params: Promise<{ profileId: string }>;
+};
+
+export const metadata: Metadata = {
+  title: "Traveler Profile | Gay Bar Passport",
+  description: "View a Gay Bar Passport traveler profile and public journal entries."
 };
 
 export default async function UserProfilePage({ params }: UserProfilePageProps) {

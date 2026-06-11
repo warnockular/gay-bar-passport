@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { resolveModerationFlag } from "@/features/admin/actions";
@@ -34,7 +35,7 @@ export default async function AdminReportsPage() {
               ) : null}
             </div>
           </Card>
-        )) : <Card className="bg-card/90 p-6">No reports are open.</Card>}
+        )) : <EmptyState title="No reports are open." description="Flagged content will appear here for moderator review." />}
       </div>
     </div>
   );

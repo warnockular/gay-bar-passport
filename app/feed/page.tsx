@@ -1,10 +1,18 @@
 import Link from "next/link";
 import { Activity, MapPinned } from "lucide-react";
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
+import { EmptyState } from "@/components/state/empty-state";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SocialEntryCard } from "@/features/social/social-entry-card";
 import { requireUser } from "@/lib/auth";
 import { listFollowedFeed } from "@/services/social";
+
+export const metadata: Metadata = {
+  title: "Feed | Gay Bar Passport",
+  robots: { index: false, follow: false }
+};
 
 export default async function FeedPage() {
   const user = await requireUser();
@@ -17,14 +25,12 @@ export default async function FeedPage() {
           {feed.entries.length ? (
             feed.entries.map((entry) => <SocialEntryCard key={entry.id} entry={entry} />)
           ) : (
-            <Card className="bg-card/90 p-6">
-              <Activity className="h-5 w-5 text-sage" aria-hidden="true" />
-              <p className="mt-4 font-semibold">Your feed is quiet.</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">Follow travelers with public journal entries to fill this space.</p>
-              <Link className="mt-4 inline-block text-sm font-semibold text-primary hover:underline" href="/users">
-                Discover travelers
-              </Link>
-            </Card>
+            <EmptyState
+              action={<Link className={buttonVariants()} href="/users">Discover travelers</Link>}
+              description="Follow travelers with public journal entries to fill this space."
+              icon={<Activity className="h-5 w-5" aria-hidden="true" />}
+              title="Your feed is quiet."
+            />
           )}
         </div>
         <Card className="h-fit bg-card/90 p-5">

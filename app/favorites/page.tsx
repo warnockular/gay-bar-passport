@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageShell } from "@/components/layout/page-shell";
-import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/state/empty-state";
+import { buttonVariants } from "@/components/ui/button";
 import { VenueCard } from "@/features/venues/venue-card";
 import { requireUser } from "@/lib/auth";
 import { listFavoriteVenueIds, listFavoriteVenues } from "@/services/venues";
@@ -23,12 +24,11 @@ export default async function FavoritesPage() {
           ))}
         </div>
       ) : (
-        <Card className="bg-card/85 p-6">
-          <p className="font-semibold">No favorites yet.</p>
-          <Link className="mt-3 inline-block text-sm font-semibold text-primary hover:underline" href="/venues">
-            Browse venues
-          </Link>
-        </Card>
+        <EmptyState
+          action={<Link className={buttonVariants()} href="/venues">Browse venues</Link>}
+          description="Save venues while browsing to build a shortlist for future trips."
+          title="No favorites yet."
+        />
       )}
     </PageShell>
   );

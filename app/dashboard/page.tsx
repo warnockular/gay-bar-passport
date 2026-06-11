@@ -1,5 +1,6 @@
 import { BarChart3, Globe2, MapPinned, Stamp } from "lucide-react";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ConfigurationCallout } from "@/components/auth/configuration-callout";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { PageShell } from "@/components/layout/page-shell";
@@ -9,6 +10,11 @@ import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  title: "Dashboard | Gay Bar Passport",
+  robots: { index: false, follow: false }
+};
 
 export default async function DashboardPage() {
   const user = await requireUser();

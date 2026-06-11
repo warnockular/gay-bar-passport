@@ -1,4 +1,5 @@
 import Image from "next/image";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, MapPin, Stamp } from "lucide-react";
@@ -13,6 +14,16 @@ import { getVenueBySlug, listFavoriteVenueIds } from "@/services/venues";
 type VenueDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({ params }: VenueDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const venue = await getVenueBySlug(slug);
+  if (!venue) return { title: "Venue | Gay Bar Passport" };
+  return {
+    title: `${venue.name} in ${venue.city} | Gay Bar Passport`,
+    description: venue.description ?? `Explore ${venue.name}, an LGBTQ+ venue in ${venue.city}, ${venue.country}.`
+  };
+}
 
 export default async function VenueDetailPage({ params }: VenueDetailPageProps) {
   const { slug } = await params;

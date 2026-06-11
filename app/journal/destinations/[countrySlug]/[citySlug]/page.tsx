@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { PageShell } from "@/components/layout/page-shell";
 import { Card } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
@@ -24,7 +25,7 @@ export default async function CityJournalPage({ params }: CityJournalPageProps) 
         {entries.map((entry) => (
           <Link key={entry.id} href={`/journal/${entry.id}`}>
             <Card className="bg-card/90 p-5 hover:bg-card">
-              {entry.photos[0]?.signedUrl ? <img src={entry.photos[0].signedUrl} alt="" className="mb-4 aspect-[4/3] w-full rounded-md object-cover" /> : null}
+              {entry.photos[0]?.signedUrl ? <Image src={entry.photos[0].signedUrl} alt={`${entry.title} journal photo`} width={800} height={600} className="mb-4 aspect-[4/3] w-full rounded-md object-cover" /> : null}
               <p className="text-sm text-muted-foreground">{entry.entry_date}</p>
               <h2 className="mt-3 font-serif text-3xl font-semibold">{entry.title}</h2>
               <p className="mt-3 line-clamp-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{entry.body}</p>

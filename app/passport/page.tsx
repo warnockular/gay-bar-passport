@@ -1,4 +1,5 @@
 import { ConfigurationCallout } from "@/components/auth/configuration-callout";
+import type { Metadata } from "next";
 import { PassportStamp } from "@/components/landing/passport-stamp";
 import { PageShell } from "@/components/layout/page-shell";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,11 @@ import { listPassportVisits, listUserAchievements } from "@/services/visits";
 import { CalendarDays, Camera, Pencil, Star, Trophy } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Passport | Gay Bar Passport",
+  robots: { index: false, follow: false }
+};
 
 export default async function PassportPage() {
   const user = await requireUser();
@@ -54,7 +60,7 @@ export default async function PassportPage() {
                   <div className="grid gap-0 md:grid-cols-[14rem_1fr]">
                     {visit.venue?.image_url ? (
                       <div className="relative min-h-52">
-                        <Image src={visit.venue.image_url} alt="" fill className="object-cover" sizes="14rem" />
+                        <Image src={visit.venue.image_url} alt={`${visit.venue.name} venue`} fill className="object-cover" sizes="14rem" />
                       </div>
                     ) : null}
                     <div className="space-y-4 p-5">
@@ -82,7 +88,7 @@ export default async function PassportPage() {
                           {visit.photos.map((photo) =>
                             photo.signedUrl ? (
                               <div key={photo.id} className="relative aspect-[4/3] overflow-hidden rounded-md border border-border">
-                                <Image src={photo.signedUrl} alt="" fill className="object-cover" sizes="12rem" />
+                                <Image src={photo.signedUrl} alt={`${visit.venue?.name ?? "Visit"} photo`} fill className="object-cover" sizes="12rem" />
                               </div>
                             ) : null
                           )}

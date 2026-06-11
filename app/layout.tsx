@@ -18,8 +18,15 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://gay-bar-passport.vercel.app"),
   title: "Gay Bar Passport",
-  description: "A luxury queer travel journal for venues, memories, stamps, and city stories."
+  description: "A luxury queer travel journal for venues, memories, stamps, and city stories.",
+  openGraph: {
+    title: "Gay Bar Passport",
+    description: "Discover queer venues, collect passport stamps, and preserve travel memories.",
+    siteName: "Gay Bar Passport",
+    type: "website"
+  }
 };
 
 // App Router pages live inside app/. Shared providers, navigation, and page chrome begin here.

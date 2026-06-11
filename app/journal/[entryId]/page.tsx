@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import type { Metadata } from "next";
 import { CalendarDays, MapPin, Pencil } from "lucide-react";
 import { DeleteJournalButton } from "@/features/journal/delete-journal-button";
 import { JournalSocialPanel } from "@/features/social/journal-social-panel";
@@ -14,6 +16,11 @@ import { getPublicJournalEntry } from "@/services/social";
 
 type JournalDetailPageProps = {
   params: Promise<{ entryId: string }>;
+};
+
+export const metadata: Metadata = {
+  title: "Journal Entry | Gay Bar Passport",
+  robots: { index: false, follow: false }
 };
 
 export default async function JournalDetailPage({ params }: JournalDetailPageProps) {
@@ -59,7 +66,7 @@ export default async function JournalDetailPage({ params }: JournalDetailPagePro
             {photos.map((photo) =>
               photo.signedUrl ? (
                 <div key={photo.id} className="overflow-hidden rounded-md border border-border">
-                  <img src={photo.signedUrl} alt="" className="h-full w-full object-cover" />
+                  <Image src={photo.signedUrl} alt={`${entry.title} journal photo`} width={800} height={600} className="h-full w-full object-cover" />
                 </div>
               ) : null
             )}

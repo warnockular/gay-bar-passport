@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BarChart3, Globe2, MapPinned } from "lucide-react";
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,6 +8,11 @@ import { ActivityChart, BarList, DestinationHeatMap, MetricCard, RecentActivity,
 import { requireUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { getTravelAnalytics } from "@/services/analytics";
+
+export const metadata: Metadata = {
+  title: "Travel Analytics | Gay Bar Passport",
+  robots: { index: false, follow: false }
+};
 
 export default async function AnalyticsPage() {
   const user = await requireUser();

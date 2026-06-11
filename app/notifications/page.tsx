@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
+import { EmptyState } from "@/components/state/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { MarkNotificationsReadButton } from "@/features/social/social-controls";
@@ -44,11 +45,11 @@ export default async function NotificationsPage() {
             </Card>
           ))
         ) : (
-          <Card className="bg-card/90 p-6">
-            <Bell className="h-5 w-5 text-sage" aria-hidden="true" />
-            <p className="mt-4 font-semibold">No notifications yet.</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">Public journal likes, comments, and new followers will appear here.</p>
-          </Card>
+          <EmptyState
+            description="Public journal likes, comments, and new followers will appear here."
+            icon={<Bell className="h-5 w-5" aria-hidden="true" />}
+            title="No notifications yet."
+          />
         )}
       </div>
     </PageShell>

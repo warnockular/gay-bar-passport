@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BarChart3, Camera, ShieldCheck } from "lucide-react";
+import type { Metadata } from "next";
 import { ConfigurationCallout } from "@/components/auth/configuration-callout";
 import { PageShell } from "@/components/layout/page-shell";
 import { PreviewPanel } from "@/components/landing/preview-panel";
@@ -8,6 +9,11 @@ import { ProfileForm } from "@/features/profile/profile-form";
 import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { ensureProfile } from "@/services/profiles";
+
+export const metadata: Metadata = {
+  title: "Profile | Gay Bar Passport",
+  robots: { index: false, follow: false }
+};
 
 export default async function ProfilePage() {
   const user = await requireUser();

@@ -1,10 +1,8 @@
 # Gay Bar Passport
 
-Gay Bar Passport is a luxury queer travel journal app foundation built with Next.js 15, TypeScript, Tailwind CSS, shadcn/ui conventions, Supabase client setup, TanStack Query, Zod, React Hook Form, and Lucide icons.
+Gay Bar Passport is a luxury queer travel journal app for discovering LGBTQ+ venues, logging visits, collecting passport stamps, writing destination journals, following travelers, viewing analytics, and operating the platform through an admin layer.
 
-Phase 3 adds usable authentication and profile management: sign up, sign in, magic links, password reset, protected sessions, profile creation, and avatar uploads.
-
-## Run Locally
+## Local Setup
 
 ```bash
 pnpm install
@@ -12,13 +10,6 @@ pnpm dev
 ```
 
 Open `http://localhost:3000`.
-
-If you use npm instead:
-
-```bash
-npm install
-npm run dev
-```
 
 ## Environment Variables
 
@@ -30,75 +21,104 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-Supabase is optional for local setup mode, but required for real sign-in, protected sessions, profile management, and authenticated visit data.
+Supabase is required for auth, profiles, visits, journal entries, social features, analytics, and admin operations.
+
+## Validation Commands
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+```
+
+`pnpm build` may fail in restricted environments if `fonts.googleapis.com` cannot be resolved by `next/font`. In Vercel and normal networked environments, the build is expected to complete.
+
+## Supabase Migrations
+
+Run migrations in order from `supabase/migrations/` or `database/migrations/`:
+
+1. `001_initial_phase_2_schema.sql`
+2. `002_phase_3_auth_profiles.sql`
+3. `003_phase_4_venue_directory.sql`
+4. `004_phase_5_visit_passport_system.sql`
+5. `005_phase_6_travel_journal.sql`
+6. `006_phase_7_social_layer.sql`
+7. `007_phase_7_public_profiles_policy.sql`
+8. `008_phase_7_public_journal_read_policy.sql`
+9. `009_phase_9_admin_platform.sql`
+
+After Phase 9, manually promote an initial admin:
+
+```sql
+update public.profiles
+set role = 'admin'
+where id = '<USER_ID>';
+```
+
+## Vercel Deployment
+
+Deploy from GitHub to Vercel. Production and Preview environments need:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SITE_URL=https://gay-bar-passport.vercel.app`
+
+Supabase Auth should include redirect URLs for local and production callback routes:
+
+- `http://localhost:3000/auth/callback`
+- `https://gay-bar-passport.vercel.app/auth/callback`
+
+## CI
+
+GitHub Actions runs:
+
+- install dependencies with pnpm
+- `pnpm typecheck`
+- `pnpm lint`
+- `pnpm build`
+
+Build requires network access for Google Fonts.
 
 ## Project Structure
 
-- `app/` contains App Router routes. Pages like `/venues`, `/passport`, `/journal`, `/dashboard`, and `/auth/sign-in` live here.
-- `components/` contains reusable layout and display components.
-- `components/ui/` contains shadcn-style primitives such as buttons, cards, inputs, labels, badges, and separators.
-- `features/` contains product-specific feature modules. Auth forms/actions live in `features/auth/`, and profile editing lives in `features/profile/`.
-- `lib/` contains shared app utilities, environment validation, and Supabase client factories.
-- `hooks/` contains reusable React hooks.
-- `services/` contains external service wrappers and database reads. `services/unsplash.ts` is the placeholder image service.
-- `schemas/` contains Zod schemas shared by forms and future server actions.
-- `types/` contains shared TypeScript types, including the placeholder Supabase database type.
-- `database/` contains migrations and optional seed SQL.
-- `supabase/` contains CLI project configuration for linking a real Supabase project.
+- `app/` App Router routes
+- `components/` shared UI, layout, state, and admin components
+- `features/` feature-specific forms/actions
+- `lib/` auth, admin guards, env, Supabase clients
+- `services/` server-side reads and aggregation
+- `schemas/` Zod schemas
+- `types/` shared TypeScript and Supabase types
+- `database/` and `supabase/` migrations
 
-## Routes
+## Manual Git Rescue Workflow
 
-- `/` landing page
-- `/auth/sign-in`
-- `/auth/sign-up`
-- `/auth/reset-password`
-- `/auth/update-password`
-- `/dashboard`
-- `/profile`
-- `/venues`
-- `/passport`
-- `/journal`
+Some Codex desktop workspaces can read the repository but cannot write `.git/index.lock`. When that happens:
 
-## Phase 3 Notes
+```bash
+git status --short
+git add <changed-files>
+git commit -m "<message>"
+git push origin main
+```
 
-Implemented:
+Run those commands from a local terminal with normal repository permissions.
 
-- Supabase schema for profiles, venues, visits, passport stamps, and journal entries.
-- Row Level Security policies for user-owned data.
-- Supabase Auth sign-in, sign-up, sign-out, magic link, password reset, and password update actions.
-- Middleware protection for `/dashboard`, `/passport`, `/journal`, `/profile`, and `/auth/update-password`.
-- Profile form with display name, home city, and avatar upload.
-- Public `avatars` storage bucket with owner-scoped upload/update/delete policies.
-- Session-aware navigation and dashboard profile entry point.
-- Public venue query hook with static fallback data before Supabase is configured.
-- Authenticated visit query hook, ready for future visit logging.
+## Known Limitations
 
-Not implemented yet:
+- Analytics map/heat map needs future UX polish.
+- Comment workflow needs more interaction feedback.
+- Notifications need deeper cross-user verification.
+- Feed cards need stronger visual hierarchy.
+- Dashboard/profile navigation needs future IA cleanup.
+- Mobile responsiveness needs a full review pass.
+- Passport stamp visuals and achievement presentation need refinement.
+- Journal editor/photo galleries need richer editing controls.
+- Admin workflows need deeper moderation QA.
 
-- Venue CRUD.
-- Visit logging forms.
-- Journal CRUD.
-- Analytics calculations.
-- Passport stamp earning rules.
+## Phase 10 Pass 1 Backlog
 
-## Supabase Setup
-
-1. Create a Supabase project.
-2. Run `database/migrations/001_initial_phase_2_schema.sql`.
-3. Run `database/migrations/002_phase_3_auth_profiles.sql`.
-4. Optionally run `database/seed.sql`.
-5. Copy your project URL and anon key into `.env.local`.
-6. In Supabase Auth settings, set the site URL to your local or Vercel URL.
-7. Add redirect URLs for:
-   - `http://localhost:3000/auth/callback`
-   - `https://your-vercel-domain.vercel.app/auth/callback`
-
-## Deployment Plan
-
-Use GitHub, Supabase, and Vercel:
-
-1. Push this project to a GitHub repository.
-2. Create or link a Supabase project and run the migrations.
-3. Import the GitHub repository into Vercel.
-4. Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_SITE_URL` in Vercel project environment variables.
-5. Deploy from Vercel.
+- Add route-level error boundaries where server actions are most complex.
+- Add automated accessibility checks.
+- Move from deprecated `next lint` to the ESLint CLI before Next 16.
+- Add smoke tests for auth, visit logging, journal, social, analytics, and admin access.
+- Add production log/monitoring integration.

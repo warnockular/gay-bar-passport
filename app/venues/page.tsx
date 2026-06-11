@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { PageShell } from "@/components/layout/page-shell";
 import { VenueDirectory } from "@/features/venues/venue-directory";
 import { getCurrentUser } from "@/lib/auth";
@@ -5,6 +6,11 @@ import { listCountries, listFavoriteVenueIds, listPublishedVenues, listTags } fr
 import type { Enums } from "@/types/database";
 
 const categories: Enums<"venue_category">[] = ["bar", "club", "lounge", "cafe", "performance", "community"];
+
+export const metadata: Metadata = {
+  title: "LGBTQ+ Venue Directory | Gay Bar Passport",
+  description: "Browse curated LGBTQ+ bars, lounges, clubs, cafes, and community venues around the world."
+};
 
 type VenuesPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
