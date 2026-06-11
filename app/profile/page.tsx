@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Camera, ShieldCheck } from "lucide-react";
+import { BarChart3, Camera, ShieldCheck } from "lucide-react";
 import { ConfigurationCallout } from "@/components/auth/configuration-callout";
 import { PageShell } from "@/components/layout/page-shell";
 import { PreviewPanel } from "@/components/landing/preview-panel";
@@ -55,6 +55,15 @@ export default async function ProfilePage() {
             copy="Uploads are stored in the avatars bucket with owner-scoped write policies."
             detail="2 MB limit"
           />
+          <PreviewPanel
+            icon={BarChart3}
+            title="Analytics"
+            copy="Your visits, stamps, journals, and mapped destinations now have a private insight dashboard."
+            detail="Personal travel data"
+          />
+          <Link className="text-sm font-semibold text-primary hover:underline" href="/analytics">
+            View travel analytics
+          </Link>
           <Link className="text-sm font-semibold text-primary hover:underline" href="/auth/reset-password">
             Reset your password
           </Link>

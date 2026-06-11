@@ -10,6 +10,7 @@ const routes: AppRoute[] = [
   { href: "/venues", label: "Venues" },
   { href: "/passport", label: "Passport" },
   { href: "/journal", label: "Journal" },
+  { href: "/analytics", label: "Analytics" },
   { href: "/dashboard", label: "Dashboard" }
 ];
 

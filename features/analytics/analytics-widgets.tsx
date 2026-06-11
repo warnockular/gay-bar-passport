@@ -95,28 +95,50 @@ export function TravelMap({ analytics }: { analytics: TravelAnalytics }) {
     );
   }
 
+  const regionSummary = [
+    { label: "Americas", count: plotted.filter((visit) => (visit.venue?.longitude ?? 0) < -25).length, x: 225, y: 225 },
+    { label: "Europe", count: plotted.filter((visit) => (visit.venue?.longitude ?? 0) >= -25 && (visit.venue?.longitude ?? 0) < 45 && (visit.venue?.latitude ?? 0) > 35).length, x: 510, y: 165 },
+    { label: "Africa", count: plotted.filter((visit) => (visit.venue?.longitude ?? 0) >= -25 && (visit.venue?.longitude ?? 0) < 55 && (visit.venue?.latitude ?? 0) <= 35).length, x: 525, y: 275 },
+    { label: "Asia-Pacific", count: plotted.filter((visit) => (visit.venue?.longitude ?? 0) >= 45).length, x: 745, y: 230 }
+  ];
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card/90">
-      <svg viewBox="0 0 1000 480" role="img" aria-label="Approximate world map of visited venues" className="h-auto w-full bg-[radial-gradient(circle_at_50%_40%,rgba(123,143,122,0.18),transparent_55%)]">
-        <rect width="1000" height="480" fill="transparent" />
-        <path d="M82 182h146l58 44 104-12 70 40 95-34 104 10 65-44 198 15" fill="none" stroke="currentColor" strokeOpacity="0.18" strokeWidth="36" strokeLinecap="round" />
-        <path d="M151 318h165l86 36 136-18 120 38 185-42" fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="28" strokeLinecap="round" />
+      <div className="border-b border-border p-5">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">Personal travel map</p>
+        <h2 className="mt-2 font-serif text-3xl font-semibold">Visited venues by region, country, and city.</h2>
+      </div>
+      <svg viewBox="0 0 1000 520" role="img" aria-label="Map-style travel heat map of visited venues" className="h-auto w-full bg-[linear-gradient(180deg,hsl(var(--muted)/0.55),transparent)]">
+        <rect width="1000" height="520" fill="transparent" />
+        <path d="M85 155 C140 112 225 109 291 145 C344 175 337 231 296 267 C236 318 139 295 96 242 C70 210 57 178 85 155Z" fill="hsl(var(--sage) / 0.16)" stroke="hsl(var(--sage) / 0.45)" strokeWidth="2" />
+        <path d="M424 142 C463 103 546 104 594 140 C620 160 613 196 576 212 C526 235 447 226 416 194 C397 174 401 153 424 142Z" fill="hsl(var(--terracotta) / 0.18)" stroke="hsl(var(--terracotta) / 0.45)" strokeWidth="2" />
+        <path d="M447 240 C500 213 581 226 622 278 C660 326 634 402 567 415 C492 430 425 381 414 319 C408 282 421 253 447 240Z" fill="hsl(var(--rose) / 0.20)" stroke="hsl(var(--rose) / 0.45)" strokeWidth="2" />
+        <path d="M645 142 C733 91 857 123 916 205 C958 264 926 341 847 360 C745 384 637 321 620 232 C612 192 622 158 645 142Z" fill="hsl(var(--burnt) / 0.14)" stroke="hsl(var(--burnt) / 0.42)" strokeWidth="2" />
+        {regionSummary.map((region) => (
+          <g key={region.label}>
+            <circle cx={region.x} cy={region.y} r={18 + region.count * 5} fill="hsl(var(--background) / 0.82)" stroke="hsl(var(--border))" />
+            <text x={region.x} y={region.y - 30} textAnchor="middle" className="fill-foreground text-[18px] font-semibold">{region.label}</text>
+            <text x={region.x} y={region.y + 6} textAnchor="middle" className="fill-muted-foreground text-[18px]">{region.count}</text>
+          </g>
+        ))}
         {plotted.map((visit) => {
           const x = ((visit.venue!.longitude! + 180) / 360) * 1000;
-          const y = ((90 - visit.venue!.latitude!) / 180) * 480;
+          const y = ((90 - visit.venue!.latitude!) / 180) * 520;
           return (
             <g key={visit.id}>
-              <circle cx={x} cy={y} r="12" fill="hsl(var(--terracotta))" opacity="0.18" />
-              <circle cx={x} cy={y} r="5" fill="hsl(var(--burnt))" />
+              <circle cx={x} cy={y} r="16" fill="hsl(var(--terracotta))" opacity="0.2" />
+              <circle cx={x} cy={y} r="6" fill="hsl(var(--burnt))" />
+              <text x={x + 12} y={y - 10} className="fill-foreground text-[16px] font-semibold">{visit.venue?.city}</text>
             </g>
           );
         })}
       </svg>
-      <div className="grid gap-2 border-t border-border p-4 text-sm text-muted-foreground sm:grid-cols-2">
+      <div className="grid gap-3 border-t border-border p-4 text-sm text-muted-foreground md:grid-cols-2">
         {plotted.slice(0, 6).map((visit) => (
-          <p key={visit.id}>
-            <span className="font-semibold text-foreground">{visit.venue?.name}</span> · {visit.venue?.city}, {visit.venue?.country}
-          </p>
+          <div key={visit.id} className="rounded-md border border-border bg-background/70 p-3">
+            <p className="font-semibold text-foreground">{visit.venue?.name}</p>
+            <p>{visit.venue?.city}, {visit.venue?.country}</p>
+          </div>
         ))}
       </div>
     </div>

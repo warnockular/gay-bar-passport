@@ -1,4 +1,4 @@
-import { BarChart3, MapPinned, Stamp } from "lucide-react";
+import { BarChart3, Globe2, MapPinned, Stamp } from "lucide-react";
 import Link from "next/link";
 import { ConfigurationCallout } from "@/components/auth/configuration-callout";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -26,6 +26,10 @@ export default async function DashboardPage() {
         </div>
         {isSupabaseConfigured ? (
           <div className="flex gap-2">
+            <Link className={cn(buttonVariants({ variant: "outline" }))} href="/analytics">
+              <Globe2 className="h-4 w-4" aria-hidden="true" />
+              Travel analytics
+            </Link>
             <Link className={cn(buttonVariants({ variant: "outline" }))} href="/profile">
               Manage profile
             </Link>
