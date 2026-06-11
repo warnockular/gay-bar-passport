@@ -118,7 +118,7 @@ export function ProfileForm({ profile, email }: ProfileFormProps) {
         <div className="space-y-3">
           <div className="grid aspect-square w-40 place-items-center overflow-hidden rounded-md border border-border bg-muted">
             {profile.avatar_url ? (
-              <img className="h-full w-full object-cover" src={profile.avatar_url} alt="" />
+              <img className="h-full w-full object-cover" src={profile.avatar_url} alt={`${profile.display_name ?? "Traveler"} avatar`} />
             ) : (
               <span className="font-serif text-5xl text-muted-foreground">{(profile.display_name ?? email).slice(0, 1).toUpperCase()}</span>
             )}
