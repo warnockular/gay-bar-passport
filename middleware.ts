@@ -2,12 +2,29 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const protectedRoutes = ["/dashboard", "/passport", "/journal", "/profile", "/auth/update-password"];
+const protectedRoutes = [
+  "/admin",
+  "/analytics",
+  "/dashboard",
+  "/favorites",
+  "/feed",
+  "/journal",
+  "/notifications",
+  "/passport",
+  "/profile",
+  "/users",
+  "/visits",
+  "/auth/update-password"
+];
+
+function shouldProtectPath(pathname: string) {
+  return protectedRoutes.some((route) => pathname.startsWith(route)) || (pathname.startsWith("/venues/") && pathname.endsWith("/log-visit"));
+}
 
 // Middleware keeps protected route behavior close to the request boundary.
 // It quietly skips auth checks until Supabase env vars are configured.
 export async function middleware(request: NextRequest) {
-  const shouldProtect = protectedRoutes.some((route) => request.nextUrl.pathname.startsWith(route));
+  const shouldProtect = shouldProtectPath(request.nextUrl.pathname);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -47,5 +64,19 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/passport/:path*", "/journal/:path*", "/profile/:path*", "/auth/update-password"]
+  matcher: [
+    "/admin/:path*",
+    "/analytics/:path*",
+    "/dashboard/:path*",
+    "/favorites/:path*",
+    "/feed/:path*",
+    "/journal/:path*",
+    "/notifications/:path*",
+    "/passport/:path*",
+    "/profile/:path*",
+    "/users/:path*",
+    "/venues/:path*",
+    "/visits/:path*",
+    "/auth/update-password"
+  ]
 };

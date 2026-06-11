@@ -6,6 +6,23 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Tables } from "@/types/database";
 
+type NotificationInsert = {
+  actor_id: string;
+  comment_id?: string;
+  journal_entry_id?: string;
+  type: "new_comment" | "new_follower" | "new_like";
+  user_id: string;
+};
+
+async function createNotification(notification: NotificationInsert) {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("notifications").insert(notification as never);
+
+  if (!error) {
+    revalidatePath("/notifications");
+  }
+}
+
 export async function toggleFollow(profileId: string) {
   if (!isSupabaseConfigured) return;
   const user = await requireUser();
@@ -19,7 +36,7 @@ export async function toggleFollow(profileId: string) {
   } else {
     const { error } = await supabase.from("follows").insert({ follower_id: user.id, following_id: profileId } as never);
     if (!error) {
-      await supabase.from("notifications").insert({ actor_id: user.id, type: "new_follower", user_id: profileId } as never);
+      await createNotification({ actor_id: user.id, type: "new_follower", user_id: profileId });
     }
   }
 
@@ -45,7 +62,7 @@ export async function toggleJournalLike(entryId: string) {
   } else {
     const { error } = await supabase.from("journal_likes").insert({ entry_id: entryId, user_id: user.id } as never);
     if (!error) {
-      await supabase.from("notifications").insert({ actor_id: user.id, journal_entry_id: entryId, type: "new_like", user_id: journalEntry.user_id } as never);
+      await createNotification({ actor_id: user.id, journal_entry_id: entryId, type: "new_like", user_id: journalEntry.user_id });
     }
   }
 
@@ -71,9 +88,7 @@ export async function addJournalComment(entryId: string, formData: FormData) {
   const savedComment = comment as Pick<Tables<"journal_comments">, "id"> | null;
 
   if (!error && savedComment && journalEntry.user_id !== user.id) {
-    await supabase
-      .from("notifications")
-      .insert({ actor_id: user.id, comment_id: savedComment.id, journal_entry_id: entryId, type: "new_comment", user_id: journalEntry.user_id } as never);
+    await createNotification({ actor_id: user.id, comment_id: savedComment.id, journal_entry_id: entryId, type: "new_comment", user_id: journalEntry.user_id });
   }
 
   revalidatePath("/feed");

@@ -42,6 +42,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   function onSubmit(values: AuthFormValues) {
     startTransition(async () => {
       const next = searchParams.get("next") ?? undefined;
+      const destination = next && next.startsWith("/") ? next : "/dashboard";
 
       if (!isSupabaseConfigured) {
         setResult({
@@ -61,8 +62,17 @@ export function AuthForm({ mode }: AuthFormProps) {
           return;
         }
 
+        const {
+          data: { session }
+        } = await supabase.auth.getSession();
+
+        if (!session) {
+          setResult({ ok: false, message: "Your session could not be confirmed. Please try signing in again." });
+          return;
+        }
+
         router.refresh();
-        router.push(next && next.startsWith("/") ? next : "/dashboard");
+        window.location.assign(destination);
         return;
       }
 
