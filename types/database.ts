@@ -9,35 +9,53 @@ export type Database = {
       journal_entries: {
         Row: {
           body: string | null;
+          city: string | null;
+          city_slug: string | null;
+          country: string | null;
+          country_slug: string | null;
           created_at: string;
           entry_date: string;
+          favorite_id: string | null;
           id: string;
           is_private: boolean;
           title: string;
           updated_at: string;
           user_id: string;
+          venue_id: string | null;
           visit_id: string | null;
         };
         Insert: {
           body?: string | null;
+          city?: string | null;
+          city_slug?: string | null;
+          country?: string | null;
+          country_slug?: string | null;
           created_at?: string;
           entry_date?: string;
+          favorite_id?: string | null;
           id?: string;
           is_private?: boolean;
           title: string;
           updated_at?: string;
           user_id: string;
+          venue_id?: string | null;
           visit_id?: string | null;
         };
         Update: {
           body?: string | null;
+          city?: string | null;
+          city_slug?: string | null;
+          country?: string | null;
+          country_slug?: string | null;
           created_at?: string;
           entry_date?: string;
+          favorite_id?: string | null;
           id?: string;
           is_private?: boolean;
           title?: string;
           updated_at?: string;
           user_id?: string;
+          venue_id?: string | null;
           visit_id?: string | null;
         };
         Relationships: [
@@ -53,6 +71,62 @@ export type Database = {
             columns: ["visit_id"];
             isOneToOne: false;
             referencedRelation: "visits";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "journal_entries_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "journal_entries_favorite_id_fkey";
+            columns: ["favorite_id"];
+            isOneToOne: false;
+            referencedRelation: "favorites";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      journal_photos: {
+        Row: {
+          caption: string | null;
+          created_at: string;
+          entry_id: string;
+          id: string;
+          storage_path: string;
+          user_id: string;
+        };
+        Insert: {
+          caption?: string | null;
+          created_at?: string;
+          entry_id: string;
+          id?: string;
+          storage_path: string;
+          user_id: string;
+        };
+        Update: {
+          caption?: string | null;
+          created_at?: string;
+          entry_id?: string;
+          id?: string;
+          storage_path?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "journal_photos_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "journal_photos_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: false;
+            referencedRelation: "journal_entries";
             referencedColumns: ["id"];
           }
         ];
