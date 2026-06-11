@@ -10,6 +10,7 @@ export const journalSchema = z.object({
   citySlug: z.string().trim().min(1),
   venueId: z.string().uuid().optional().or(z.literal("")),
   favoriteId: z.string().uuid().optional().or(z.literal("")),
+  isPrivate: z.boolean().optional(),
   visitId: z.string().uuid().optional().or(z.literal(""))
 });
 

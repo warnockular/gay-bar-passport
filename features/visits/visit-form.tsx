@@ -29,6 +29,8 @@ const moodOptions = [
   ["reflective", "Reflective"]
 ];
 
+const maxPhotoBytes = 4 * 1024 * 1024;
+
 export function VisitForm({ mode, venue, visit }: VisitFormProps) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<VisitActionResult | null>(null);
@@ -56,7 +58,14 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
       formData.set("privateNotes", values.privateNotes ?? "");
 
       const photoInput = document.getElementById("visitPhotos") as HTMLInputElement | null;
-      Array.from(photoInput?.files ?? []).forEach((file) => formData.append("photos", file));
+      const photos = Array.from(photoInput?.files ?? []);
+
+      if (photos.some((file) => file.size > maxPhotoBytes)) {
+        setResult({ ok: false, message: "Keep each visit photo under 4 MB." });
+        return;
+      }
+
+      photos.forEach((file) => formData.append("photos", file));
 
       const actionResult =
         mode === "create" && venue ? await createVisit(venue.id, venue.slug, formData) : visit ? await updateVisit(visit.id, formData) : { ok: false, message: "Visit details are missing." };

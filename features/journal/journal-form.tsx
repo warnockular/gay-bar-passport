@@ -43,6 +43,7 @@ export function JournalForm({ entry, mode, options }: JournalFormProps) {
       countrySlug: entry?.country_slug ?? entry?.venue?.country_slug ?? "",
       entryDate: entry?.entry_date ?? new Date().toISOString().slice(0, 10),
       favoriteId: entry?.favorite_id ?? "",
+      isPrivate: entry?.is_private ?? true,
       title: entry?.title ?? "",
       venueId: entry?.venue_id ?? "",
       visitId: entry?.visit_id ?? ""
@@ -78,7 +79,7 @@ export function JournalForm({ entry, mode, options }: JournalFormProps) {
       }
 
       const formData = new FormData();
-      Object.entries(values).forEach(([key, value]) => formData.set(key, value ?? ""));
+      Object.entries(values).forEach(([key, value]) => formData.set(key, String(value ?? "")));
       photos.forEach((file) => formData.append("photos", file));
 
       const actionResult = mode === "create" ? await createJournalEntry(formData) : entry ? await updateJournalEntry(entry.id, formData) : { ok: false, message: "Entry details are missing." };
@@ -157,6 +158,14 @@ export function JournalForm({ entry, mode, options }: JournalFormProps) {
         <Textarea id="body" className="min-h-64 font-mono leading-7" placeholder="Write with simple Markdown-style headings, bullets, and paragraphs." {...register("body")} />
         {errors.body ? <p className="text-sm text-destructive">{errors.body.message}</p> : null}
       </div>
+
+      <label className="flex items-start gap-3 rounded-md border border-border bg-background/70 p-4 text-sm leading-6">
+        <input id="isPrivate" type="checkbox" className="mt-1" {...register("isPrivate")} />
+        <span>
+          <span className="block font-semibold">Keep this entry private</span>
+          <span className="text-muted-foreground">Turn this off when you want the entry to appear on your public profile and follower feed.</span>
+        </span>
+      </label>
 
       <div className="space-y-2">
         <Label htmlFor="journalPhotos" className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-primary">

@@ -56,6 +56,7 @@ function parseJournalForm(formData: FormData) {
     countrySlug: formData.get("countrySlug"),
     entryDate: formData.get("entryDate"),
     favoriteId: formData.get("favoriteId"),
+    isPrivate: formData.get("isPrivate") === "true",
     title: formData.get("title"),
     venueId: formData.get("venueId"),
     visitId: formData.get("visitId")
@@ -71,7 +72,7 @@ function entryPayload(userId: string, data: ReturnType<typeof journalSchema.pars
     country_slug: data.countrySlug,
     entry_date: data.entryDate,
     favorite_id: data.favoriteId || null,
-    is_private: true,
+    is_private: data.isPrivate ?? true,
     title: data.title,
     user_id: userId,
     venue_id: data.venueId || null,

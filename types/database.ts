@@ -131,6 +131,176 @@ export type Database = {
           }
         ];
       };
+      follows: {
+        Row: {
+          created_at: string;
+          follower_id: string;
+          following_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          follower_id: string;
+          following_id: string;
+        };
+        Update: {
+          created_at?: string;
+          follower_id?: string;
+          following_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "follows_follower_id_fkey";
+            columns: ["follower_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "follows_following_id_fkey";
+            columns: ["following_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      journal_likes: {
+        Row: {
+          created_at: string;
+          entry_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          entry_id: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          entry_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "journal_likes_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: false;
+            referencedRelation: "journal_entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "journal_likes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      journal_comments: {
+        Row: {
+          body: string;
+          created_at: string;
+          entry_id: string;
+          id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          entry_id: string;
+          id?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          entry_id?: string;
+          id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "journal_comments_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: false;
+            referencedRelation: "journal_entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "journal_comments_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      notifications: {
+        Row: {
+          actor_id: string | null;
+          comment_id: string | null;
+          created_at: string;
+          id: string;
+          journal_entry_id: string | null;
+          read_at: string | null;
+          type: "new_follower" | "new_like" | "new_comment";
+          user_id: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          comment_id?: string | null;
+          created_at?: string;
+          id?: string;
+          journal_entry_id?: string | null;
+          read_at?: string | null;
+          type: "new_follower" | "new_like" | "new_comment";
+          user_id: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          comment_id?: string | null;
+          created_at?: string;
+          id?: string;
+          journal_entry_id?: string | null;
+          read_at?: string | null;
+          type?: "new_follower" | "new_like" | "new_comment";
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_journal_entry_id_fkey";
+            columns: ["journal_entry_id"];
+            isOneToOne: false;
+            referencedRelation: "journal_entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_comment_id_fkey";
+            columns: ["comment_id"];
+            isOneToOne: false;
+            referencedRelation: "journal_comments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       passport_stamps: {
         Row: {
           city: string;
