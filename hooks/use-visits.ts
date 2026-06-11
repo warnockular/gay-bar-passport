@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { listMyVisits } from "@/services/visits";
+import { listMyVisits } from "@/services/client-visits";
 
 // First authenticated TanStack Query hook. It is disabled until Supabase env vars exist.
 export function useVisits() {

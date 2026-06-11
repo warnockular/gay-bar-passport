@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink, MapPin } from "lucide-react";
+import { ExternalLink, MapPin, Stamp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -60,6 +60,10 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
         </div>
         <Card className="h-fit space-y-5 bg-card/90 p-5">
           <FavoriteButton venueId={venue.id} initialIsFavorite={favoriteIds.includes(venue.id)} isSignedIn={Boolean(user)} />
+          <Link className={cn(buttonVariants({ variant: "secondary" }), "w-full")} href={user ? `/venues/${venue.slug}/log-visit` : `/auth/sign-in?next=${encodeURIComponent(`/venues/${venue.slug}/log-visit`)}`}>
+            <Stamp className="h-4 w-4" aria-hidden="true" />
+            Log visit
+          </Link>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Address</p>
             <p className="mt-2 text-sm">{venue.address ?? venue.neighborhood ?? `${venue.city}, ${venue.country}`}</p>

@@ -115,6 +115,30 @@ export type Database = {
           }
         ];
       };
+      achievements: {
+        Row: {
+          code: string;
+          created_at: string;
+          description: string;
+          id: string;
+          name: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          description: string;
+          id?: string;
+          name: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          description?: string;
+          id?: string;
+          name?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           avatar_url: string | null;
@@ -294,6 +318,84 @@ export type Database = {
             columns: ["venue_id"];
             isOneToOne: false;
             referencedRelation: "venues";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      user_achievements: {
+        Row: {
+          achievement_id: string;
+          awarded_at: string;
+          id: string;
+          user_id: string;
+        };
+        Insert: {
+          achievement_id: string;
+          awarded_at?: string;
+          id?: string;
+          user_id: string;
+        };
+        Update: {
+          achievement_id?: string;
+          awarded_at?: string;
+          id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey";
+            columns: ["achievement_id"];
+            isOneToOne: false;
+            referencedRelation: "achievements";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_achievements_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      visit_photos: {
+        Row: {
+          caption: string | null;
+          created_at: string;
+          id: string;
+          storage_path: string;
+          user_id: string;
+          visit_id: string;
+        };
+        Insert: {
+          caption?: string | null;
+          created_at?: string;
+          id?: string;
+          storage_path: string;
+          user_id: string;
+          visit_id: string;
+        };
+        Update: {
+          caption?: string | null;
+          created_at?: string;
+          id?: string;
+          storage_path?: string;
+          user_id?: string;
+          visit_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "visit_photos_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "visit_photos_visit_id_fkey";
+            columns: ["visit_id"];
+            isOneToOne: false;
+            referencedRelation: "visits";
             referencedColumns: ["id"];
           }
         ];
