@@ -518,6 +518,8 @@ export type Database = {
         Row: {
           address: string | null;
           category: Database["public"]["Enums"]["venue_category"];
+          claimed_at: string | null;
+          claimed_by: string | null;
           city_slug: string;
           city: string;
           country_slug: string;
@@ -526,6 +528,7 @@ export type Database = {
           description: string | null;
           id: string;
           image_url: string | null;
+          identity_classification: Database["public"]["Enums"]["venue_identity_classification"];
           is_lgbtq_owned: boolean;
           is_published: boolean;
           latitude: number | null;
@@ -534,13 +537,22 @@ export type Database = {
           neighborhood: string | null;
           region: string | null;
           review_status: "active" | "hidden" | "pending_review";
+          reviewed_at: string | null;
+          reviewed_by: string | null;
           slug: string;
+          source: string | null;
+          source_id: string | null;
+          submission_status: Database["public"]["Enums"]["venue_submission_status"];
           updated_at: string;
+          verification_score: number;
+          verification_status: Database["public"]["Enums"]["venue_verification_status"];
           website_url: string | null;
         };
         Insert: {
           address?: string | null;
           category?: Database["public"]["Enums"]["venue_category"];
+          claimed_at?: string | null;
+          claimed_by?: string | null;
           city_slug: string;
           city: string;
           country_slug: string;
@@ -549,6 +561,7 @@ export type Database = {
           description?: string | null;
           id?: string;
           image_url?: string | null;
+          identity_classification?: Database["public"]["Enums"]["venue_identity_classification"];
           is_lgbtq_owned?: boolean;
           is_published?: boolean;
           latitude?: number | null;
@@ -557,13 +570,22 @@ export type Database = {
           neighborhood?: string | null;
           region?: string | null;
           review_status?: "active" | "hidden" | "pending_review";
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
           slug: string;
+          source?: string | null;
+          source_id?: string | null;
+          submission_status?: Database["public"]["Enums"]["venue_submission_status"];
           updated_at?: string;
+          verification_score?: number;
+          verification_status?: Database["public"]["Enums"]["venue_verification_status"];
           website_url?: string | null;
         };
         Update: {
           address?: string | null;
           category?: Database["public"]["Enums"]["venue_category"];
+          claimed_at?: string | null;
+          claimed_by?: string | null;
           city_slug?: string;
           city?: string;
           country_slug?: string;
@@ -572,6 +594,7 @@ export type Database = {
           description?: string | null;
           id?: string;
           image_url?: string | null;
+          identity_classification?: Database["public"]["Enums"]["venue_identity_classification"];
           is_lgbtq_owned?: boolean;
           is_published?: boolean;
           latitude?: number | null;
@@ -580,11 +603,33 @@ export type Database = {
           neighborhood?: string | null;
           region?: string | null;
           review_status?: "active" | "hidden" | "pending_review";
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
           slug?: string;
+          source?: string | null;
+          source_id?: string | null;
+          submission_status?: Database["public"]["Enums"]["venue_submission_status"];
           updated_at?: string;
+          verification_score?: number;
+          verification_status?: Database["public"]["Enums"]["venue_verification_status"];
           website_url?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "venues_claimed_by_fkey";
+            columns: ["claimed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venues_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       tags: {
         Row: {
@@ -823,7 +868,10 @@ export type Database = {
       };
     };
     Enums: {
+      venue_identity_classification: "lgbtq_venue" | "lgbtq_friendly" | "historic_site" | "community_recommended";
       venue_category: "bar" | "club" | "lounge" | "cafe" | "performance" | "community";
+      venue_submission_status: "imported" | "community_submitted" | "owner_submitted" | "admin_created";
+      venue_verification_status: "unverified" | "community_verified" | "owner_verified" | "admin_verified";
       visit_mood: "iconic" | "intimate" | "social" | "romantic" | "high_energy" | "reflective";
     };
     CompositeTypes: Record<string, never>;

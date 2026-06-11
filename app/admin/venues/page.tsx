@@ -21,7 +21,13 @@ export default async function AdminVenuesPage() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge>{venue.review_status}</Badge>
                   <Badge>{venue.is_published ? "published" : "hidden"}</Badge>
+                  <Badge>{venue.verification_status}</Badge>
+                  <Badge>{venue.submission_status}</Badge>
+                  <Badge>{venue.identity_classification}</Badge>
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Source: {venue.source ? `${venue.source}${venue.source_id ? ` · ${venue.source_id}` : ""}` : "manual"}
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {(["active", "hidden", "pending_review"] as const).map((status) => (

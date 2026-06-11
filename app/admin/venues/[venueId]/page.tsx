@@ -43,6 +43,35 @@ export default async function AdminVenuePage({ params }: AdminVenuePageProps) {
             ))}
           </div>
         </Card>
+        <Card className="bg-card/90 p-6 lg:col-start-2">
+          <h2 className="font-serif text-3xl font-semibold">Data foundation</h2>
+          <dl className="mt-5 space-y-3 text-sm">
+            <div>
+              <dt className="font-semibold">Verification</dt>
+              <dd className="text-muted-foreground">{venue.verification_status} · score {venue.verification_score}/100</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Identity</dt>
+              <dd className="text-muted-foreground">{venue.identity_classification}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Submission</dt>
+              <dd className="text-muted-foreground">{venue.submission_status}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Source</dt>
+              <dd className="text-muted-foreground">{venue.source ? `${venue.source}${venue.source_id ? ` · ${venue.source_id}` : ""}` : "manual"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Claim</dt>
+              <dd className="text-muted-foreground">{venue.claimed_by ? `Claimed ${venue.claimed_at ?? ""}` : "Unclaimed"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Review</dt>
+              <dd className="text-muted-foreground">{venue.reviewed_by ? `Reviewed ${venue.reviewed_at ?? ""}` : "Not reviewed in Phase 11B"}</dd>
+            </div>
+          </dl>
+        </Card>
       </div>
     </div>
   );

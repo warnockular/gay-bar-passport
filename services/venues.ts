@@ -21,6 +21,18 @@ type VenueTagJoin = {
 };
 
 const createdAt = new Date(0).toISOString();
+const venueDataFoundationDefaults = {
+  claimed_at: null,
+  claimed_by: null,
+  identity_classification: "lgbtq_venue" as const,
+  reviewed_at: null,
+  reviewed_by: null,
+  source: null,
+  source_id: null,
+  submission_status: "admin_created" as const,
+  verification_score: 0,
+  verification_status: "unverified" as const
+};
 
 export const fallbackVenues: VenueWithTags[] = [
   {
@@ -45,6 +57,7 @@ export const fallbackVenues: VenueWithTags[] = [
     review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
+    ...venueDataFoundationDefaults,
     tags: [
       { id: "tag-cocktails", name: "Cocktails", slug: "cocktails" },
       { id: "tag-owned", name: "LGBTQ+ owned", slug: "lgbtq-owned" },
@@ -73,6 +86,7 @@ export const fallbackVenues: VenueWithTags[] = [
     review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
+    ...venueDataFoundationDefaults,
     tags: [
       { id: "tag-cocktails", name: "Cocktails", slug: "cocktails" },
       { id: "tag-quiet", name: "Quiet conversation", slug: "quiet-conversation" }
@@ -100,6 +114,7 @@ export const fallbackVenues: VenueWithTags[] = [
     review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
+    ...venueDataFoundationDefaults,
     tags: [
       { id: "tag-cocktails", name: "Cocktails", slug: "cocktails" },
       { id: "tag-owned", name: "LGBTQ+ owned", slug: "lgbtq-owned" },
@@ -128,6 +143,7 @@ export const fallbackVenues: VenueWithTags[] = [
     review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
+    ...venueDataFoundationDefaults,
     tags: [
       { id: "tag-drag", name: "Drag", slug: "drag" },
       { id: "tag-dancing", name: "Dancing", slug: "dancing" },
@@ -156,6 +172,7 @@ export const fallbackVenues: VenueWithTags[] = [
     review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
+    ...venueDataFoundationDefaults,
     tags: [
       { id: "tag-dancing", name: "Dancing", slug: "dancing" },
       { id: "tag-late", name: "Late night", slug: "late-night" }
@@ -183,6 +200,7 @@ export const fallbackVenues: VenueWithTags[] = [
     review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
+    ...venueDataFoundationDefaults,
     tags: [
       { id: "tag-community", name: "Community", slug: "community" },
       { id: "tag-cafe", name: "Cafe", slug: "cafe" },
