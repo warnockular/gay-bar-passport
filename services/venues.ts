@@ -42,6 +42,7 @@ export const fallbackVenues: VenueWithTags[] = [
     website_url: "https://example.com/velvet-atlas",
     is_lgbtq_owned: true,
     is_published: true,
+    review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
     tags: [
@@ -69,6 +70,7 @@ export const fallbackVenues: VenueWithTags[] = [
     website_url: "https://example.com/sage-room",
     is_lgbtq_owned: false,
     is_published: true,
+    review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
     tags: [
@@ -95,6 +97,7 @@ export const fallbackVenues: VenueWithTags[] = [
     website_url: "https://example.com/terracotta-bar",
     is_lgbtq_owned: true,
     is_published: true,
+    review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
     tags: [
@@ -122,6 +125,7 @@ export const fallbackVenues: VenueWithTags[] = [
     website_url: "https://example.com/rose-archive",
     is_lgbtq_owned: true,
     is_published: true,
+    review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
     tags: [
@@ -149,6 +153,7 @@ export const fallbackVenues: VenueWithTags[] = [
     website_url: "https://example.com/marigold-social",
     is_lgbtq_owned: false,
     is_published: true,
+    review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
     tags: [
@@ -175,6 +180,7 @@ export const fallbackVenues: VenueWithTags[] = [
     website_url: "https://example.com/harbor-house",
     is_lgbtq_owned: true,
     is_published: true,
+    review_status: "active",
     created_at: createdAt,
     updated_at: createdAt,
     tags: [

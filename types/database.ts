@@ -18,6 +18,7 @@ export type Database = {
           favorite_id: string | null;
           id: string;
           is_private: boolean;
+          moderation_status: "active" | "hidden" | "flagged";
           title: string;
           updated_at: string;
           user_id: string;
@@ -35,6 +36,7 @@ export type Database = {
           favorite_id?: string | null;
           id?: string;
           is_private?: boolean;
+          moderation_status?: "active" | "hidden" | "flagged";
           title: string;
           updated_at?: string;
           user_id: string;
@@ -52,6 +54,7 @@ export type Database = {
           favorite_id?: string | null;
           id?: string;
           is_private?: boolean;
+          moderation_status?: "active" | "hidden" | "flagged";
           title?: string;
           updated_at?: string;
           user_id?: string;
@@ -203,6 +206,7 @@ export type Database = {
           created_at: string;
           entry_id: string;
           id: string;
+          moderation_status: "active" | "hidden" | "flagged";
           updated_at: string;
           user_id: string;
         };
@@ -211,6 +215,7 @@ export type Database = {
           created_at?: string;
           entry_id: string;
           id?: string;
+          moderation_status?: "active" | "hidden" | "flagged";
           updated_at?: string;
           user_id: string;
         };
@@ -219,6 +224,7 @@ export type Database = {
           created_at?: string;
           entry_id?: string;
           id?: string;
+          moderation_status?: "active" | "hidden" | "flagged";
           updated_at?: string;
           user_id?: string;
         };
@@ -295,6 +301,95 @@ export type Database = {
           {
             foreignKeyName: "notifications_user_id_fkey";
             columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      moderation_flags: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          reason: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          status: "open" | "resolved" | "dismissed";
+          target_id: string;
+          target_type: "user" | "venue" | "journal" | "comment";
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          reason: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: "open" | "resolved" | "dismissed";
+          target_id: string;
+          target_type: "user" | "venue" | "journal" | "comment";
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          reason?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: "open" | "resolved" | "dismissed";
+          target_id?: string;
+          target_type?: "user" | "venue" | "journal" | "comment";
+        };
+        Relationships: [
+          {
+            foreignKeyName: "moderation_flags_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "moderation_flags_resolved_by_fkey";
+            columns: ["resolved_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      audit_logs: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          created_at: string;
+          id: string;
+          metadata: Json;
+          target_id: string | null;
+          target_type: string;
+        };
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          created_at?: string;
+          id?: string;
+          metadata?: Json;
+          target_id?: string | null;
+          target_type: string;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          created_at?: string;
+          id?: string;
+          metadata?: Json;
+          target_id?: string | null;
+          target_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_actor_id_fkey";
+            columns: ["actor_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -387,25 +482,34 @@ export type Database = {
         Row: {
           avatar_url: string | null;
           created_at: string;
+          deleted_at: string | null;
           display_name: string | null;
           home_city: string | null;
           id: string;
+          role: "user" | "moderator" | "admin";
+          status: "active" | "suspended";
           updated_at: string;
         };
         Insert: {
           avatar_url?: string | null;
           created_at?: string;
+          deleted_at?: string | null;
           display_name?: string | null;
           home_city?: string | null;
           id: string;
+          role?: "user" | "moderator" | "admin";
+          status?: "active" | "suspended";
           updated_at?: string;
         };
         Update: {
           avatar_url?: string | null;
           created_at?: string;
+          deleted_at?: string | null;
           display_name?: string | null;
           home_city?: string | null;
           id?: string;
+          role?: "user" | "moderator" | "admin";
+          status?: "active" | "suspended";
           updated_at?: string;
         };
         Relationships: [];
@@ -429,6 +533,7 @@ export type Database = {
           name: string;
           neighborhood: string | null;
           region: string | null;
+          review_status: "active" | "hidden" | "pending_review";
           slug: string;
           updated_at: string;
           website_url: string | null;
@@ -451,6 +556,7 @@ export type Database = {
           name: string;
           neighborhood?: string | null;
           region?: string | null;
+          review_status?: "active" | "hidden" | "pending_review";
           slug: string;
           updated_at?: string;
           website_url?: string | null;
@@ -473,6 +579,7 @@ export type Database = {
           name?: string;
           neighborhood?: string | null;
           region?: string | null;
+          review_status?: "active" | "hidden" | "pending_review";
           slug?: string;
           updated_at?: string;
           website_url?: string | null;
@@ -701,6 +808,14 @@ export type Database = {
       handle_new_user: {
         Args: Record<PropertyKey, never>;
         Returns: unknown;
+      };
+      current_profile_role: {
+        Args: Record<PropertyKey, never>;
+        Returns: string;
+      };
+      is_admin_role: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
       };
       set_updated_at: {
         Args: Record<PropertyKey, never>;
