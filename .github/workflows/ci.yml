@@ -29,6 +29,8 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
+        env:
+          PNPM_IGNORE_DEPENDENCY_SCRIPTS: "false"
         run: pnpm install --frozen-lockfile --ignore-scripts=false
 
       - name: Typecheck
