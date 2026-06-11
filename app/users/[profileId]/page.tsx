@@ -14,7 +14,7 @@ type UserProfilePageProps = {
 export default async function UserProfilePage({ params }: UserProfilePageProps) {
   const user = await requireUser();
   const { profileId } = await params;
-  const [profile, entries] = user ? await Promise.all([getPublicProfile(profileId, user.id), listPublicJournalEntries(user.id, profileId)]) : [null, []];
+  const [profile, entries] = user ? await Promise.all([getPublicProfile(profileId, user.id), listPublicJournalEntries(user.id, { authorId: profileId })]) : [null, []];
 
   if (!profile) notFound();
 

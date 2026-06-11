@@ -74,7 +74,7 @@ export async function getPublicProfile(profileId: string, viewerId: string): Pro
   return profiles.find((profile) => profile.id === profileId) ?? null;
 }
 
-export async function listPublicJournalEntries(viewerId: string, authorId?: string): Promise<SocialJournalEntry[]> {
+export async function listPublicJournalEntries(viewerId: string, filters: { authorId?: string; authorIds?: string[] } = {}): Promise<SocialJournalEntry[]> {
   if (!isSupabaseConfigured) return [];
 
   const supabase = await createSupabaseServerClient();
@@ -86,7 +86,8 @@ export async function listPublicJournalEntries(viewerId: string, authorId?: stri
     .order("created_at", { ascending: false })
     .limit(30);
 
-  if (authorId) query = query.eq("user_id", authorId);
+  if (filters.authorId) query = query.eq("user_id", filters.authorId);
+  if (filters.authorIds?.length) query = query.in("user_id", filters.authorIds);
 
   const { data } = await query;
   const rows = (data ?? []) as JournalRow[];
@@ -129,7 +130,7 @@ export async function listFollowedFeed(viewerId: string) {
   const followedIds = ((follows ?? []) as Pick<Tables<"follows">, "following_id">[]).map((follow) => follow.following_id);
   if (!followedIds.length) return { entries: [], visits: [] as FeedVisit[] };
 
-  const entries = await listPublicJournalEntries(viewerId);
+  const entries = await listPublicJournalEntries(viewerId, { authorIds: followedIds });
   const { data: visits } = await supabase
     .from("visits")
     .select("id, created_at, visited_on, user_id, venues(name, slug, city, country)")
@@ -140,7 +141,7 @@ export async function listFollowedFeed(viewerId: string) {
   const profileMap = await getProfilesById(visitRows.map((visit) => visit.user_id));
 
   return {
-    entries: entries.filter((entry) => followedIds.includes(entry.user_id)),
+    entries,
     visits: visitRows.map((visit) => ({ ...visit, author: profileMap.get(visit.user_id) ?? null, venue: visit.venues ?? null }))
   };
 }
