@@ -13,7 +13,7 @@ const baseDesktopRoutes: AppRoute[] = [
   { href: "/passport", label: "Passport" },
   { href: "/journal", label: "Journal" },
   { href: "/feed", label: "Feed" },
-  { href: "/users", label: "Community" },
+  { href: "/users", label: "Users" },
   { href: "/analytics", label: "Analytics" },
   { href: "/dashboard", label: "Dashboard" }
 ];
@@ -29,7 +29,7 @@ export async function SiteHeader() {
     { href: "/passport", label: "Passport" },
     { href: "/journal", label: "Journal" },
     { href: "/feed", label: "Feed" },
-    { href: "/users", label: "Community" },
+    { href: "/users", label: "Users" },
     { href: "/analytics", label: "Analytics" },
     { href: "/profile", label: "Profile" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])
