@@ -38,6 +38,10 @@ export default async function AdminDashboardPage() {
         <SummaryCard label="Pending venue review" value={summary.venueModeration.pendingReview} />
         <SummaryCard label="Verified venues" value={summary.venueModeration.verified} />
         <SummaryCard label="Imported venues" value={summary.venueModeration.imported} />
+        <SummaryCard label="Pending imports" value={summary.importReadiness.pendingImports} />
+        <SummaryCard label="Staged venues" value={summary.importReadiness.stagedVenues} />
+        <SummaryCard label="Duplicate candidates" value={summary.importReadiness.duplicateCandidates} />
+        <SummaryCard label="Approved imports" value={summary.importReadiness.approvedImports} />
       </div>
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <Card className="bg-card/90 p-6">

@@ -5,6 +5,12 @@ export type AdminSummary = {
   comments: number;
   favorites: number;
   follows: number;
+  importReadiness: {
+    approvedImports: number;
+    duplicateCandidates: number;
+    pendingImports: number;
+    stagedVenues: number;
+  };
   journalEntries: number;
   moderationQueue: number;
   passportStamps: number;
@@ -24,13 +30,17 @@ export type AdminSummary = {
 
 export type AdminProfile = Tables<"profiles">;
 export type AdminVenue = Tables<"venues">;
+export type AdminImportBatch = Tables<"import_batches">;
+export type AdminStagedVenue = Tables<"venue_import_staging"> & {
+  duplicateVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country"> | null;
+};
 export type AdminJournal = Tables<"journal_entries"> & { profiles?: Pick<Tables<"profiles">, "display_name"> | null };
 export type AdminComment = Tables<"journal_comments"> & {
   journal_entries?: Pick<Tables<"journal_entries">, "title"> | null;
   profiles?: Pick<Tables<"profiles">, "display_name"> | null;
 };
 
-async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "visits">, filter?: (query: any) => any) {
+async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
   const supabase = await createSupabaseServerClient();
   let query = supabase.from(table).select("*", { count: "exact", head: true });
   if (filter) query = filter(query);
@@ -41,12 +51,14 @@ async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "jou
 type TablesMap = {
   favorites: Tables<"favorites">;
   follows: Tables<"follows">;
+  import_batches: Tables<"import_batches">;
   journal_comments: Tables<"journal_comments">;
   journal_entries: Tables<"journal_entries">;
   moderation_flags: Tables<"moderation_flags">;
   passport_stamps: Tables<"passport_stamps">;
   profiles: Tables<"profiles">;
   venues: Tables<"venues">;
+  venue_import_staging: Tables<"venue_import_staging">;
   visits: Tables<"visits">;
 };
 
@@ -68,6 +80,10 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     venuePendingReview,
     venueVerified,
     venueImported,
+    pendingImports,
+    stagedVenues,
+    duplicateCandidates,
+    approvedImports,
     users,
     journals
   ] = await Promise.all([
@@ -86,6 +102,10 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     count("venues", (query) => query.eq("review_status", "pending_review")),
     count("venues", (query) => query.neq("verification_status", "unverified")),
     count("venues", (query) => query.eq("submission_status", "imported")),
+    count("import_batches", (query) => query.in("status", ["pending", "processing"])),
+    count("venue_import_staging"),
+    count("venue_import_staging", (query) => query.eq("duplicate_review_status", "possible_duplicate")),
+    count("venue_import_staging", (query) => query.eq("approval_status", "approved")),
     supabase.from("profiles").select("display_name, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("journal_entries").select("title, created_at").order("created_at", { ascending: false }).limit(5)
   ]);
@@ -99,6 +119,12 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     comments,
     favorites,
     follows,
+    importReadiness: {
+      approvedImports,
+      duplicateCandidates,
+      pendingImports,
+      stagedVenues
+    },
     journalEntries,
     moderationQueue,
     passportStamps,
@@ -158,6 +184,46 @@ export async function listAdminVenueReviewQueue(filter: VenueQueueFilter = "unve
 export async function getAdminVenue(venueId: string) {
   const venues = await listAdminVenues();
   return venues.find((venue) => venue.id === venueId) ?? null;
+}
+
+export async function listImportBatches() {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("import_batches").select("*").order("created_at", { ascending: false }).limit(100);
+  return (data ?? []) as AdminImportBatch[];
+}
+
+export async function getImportBatch(batchId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("import_batches").select("*").eq("id", batchId).maybeSingle();
+  return data as AdminImportBatch | null;
+}
+
+export async function listStagedVenues(batchId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("venue_import_staging")
+    .select("*, venues(id, name, city, country)")
+    .eq("import_batch_id", batchId)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  return ((data ?? []) as Array<Tables<"venue_import_staging"> & { venues?: AdminStagedVenue["duplicateVenue"] }>).map((row) => ({
+    ...row,
+    duplicateVenue: row.venues ?? null
+  }));
+}
+
+export async function getImportBatchStats(batchId: string) {
+  const [total, pending, approved, rejected, merged, duplicateCandidates] = await Promise.all([
+    count("venue_import_staging", (query) => query.eq("import_batch_id", batchId)),
+    count("venue_import_staging", (query) => query.eq("import_batch_id", batchId).eq("approval_status", "pending")),
+    count("venue_import_staging", (query) => query.eq("import_batch_id", batchId).eq("approval_status", "approved")),
+    count("venue_import_staging", (query) => query.eq("import_batch_id", batchId).eq("approval_status", "rejected")),
+    count("venue_import_staging", (query) => query.eq("import_batch_id", batchId).eq("approval_status", "merged")),
+    count("venue_import_staging", (query) => query.eq("import_batch_id", batchId).eq("duplicate_review_status", "possible_duplicate"))
+  ]);
+
+  return { approved, duplicateCandidates, merged, pending, rejected, total };
 }
 
 export async function listAdminJournals() {

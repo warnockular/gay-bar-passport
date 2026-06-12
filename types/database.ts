@@ -307,6 +307,150 @@ export type Database = {
           }
         ];
       };
+      import_batches: {
+        Row: {
+          approved_count: number;
+          completed_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          imported_count: number;
+          rejected_count: number;
+          source_name: string;
+          source_type: string;
+          started_at: string | null;
+          status: Database["public"]["Enums"]["import_batch_status"];
+          updated_at: string;
+        };
+        Insert: {
+          approved_count?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          imported_count?: number;
+          rejected_count?: number;
+          source_name: string;
+          source_type: string;
+          started_at?: string | null;
+          status?: Database["public"]["Enums"]["import_batch_status"];
+          updated_at?: string;
+        };
+        Update: {
+          approved_count?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          imported_count?: number;
+          rejected_count?: number;
+          source_name?: string;
+          source_type?: string;
+          started_at?: string | null;
+          status?: Database["public"]["Enums"]["import_batch_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      venue_import_staging: {
+        Row: {
+          approval_status: Database["public"]["Enums"]["import_approval_status"];
+          city: string | null;
+          country: string | null;
+          created_at: string;
+          duplicate_existing_venue_id: string | null;
+          duplicate_review_status: Database["public"]["Enums"]["import_duplicate_status"];
+          id: string;
+          import_batch_id: string;
+          latitude: number | null;
+          longitude: number | null;
+          name: string | null;
+          name_similarity: number | null;
+          raw_data: Json;
+          review_notes: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          source: string;
+          source_id: string | null;
+          source_metadata: Json;
+          updated_at: string;
+        };
+        Insert: {
+          approval_status?: Database["public"]["Enums"]["import_approval_status"];
+          city?: string | null;
+          country?: string | null;
+          created_at?: string;
+          duplicate_existing_venue_id?: string | null;
+          duplicate_review_status?: Database["public"]["Enums"]["import_duplicate_status"];
+          id?: string;
+          import_batch_id: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          name?: string | null;
+          name_similarity?: number | null;
+          raw_data?: Json;
+          review_notes?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          source: string;
+          source_id?: string | null;
+          source_metadata?: Json;
+          updated_at?: string;
+        };
+        Update: {
+          approval_status?: Database["public"]["Enums"]["import_approval_status"];
+          city?: string | null;
+          country?: string | null;
+          created_at?: string;
+          duplicate_existing_venue_id?: string | null;
+          duplicate_review_status?: Database["public"]["Enums"]["import_duplicate_status"];
+          id?: string;
+          import_batch_id?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          name?: string | null;
+          name_similarity?: number | null;
+          raw_data?: Json;
+          review_notes?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          source?: string;
+          source_id?: string | null;
+          source_metadata?: Json;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_import_staging_duplicate_existing_venue_id_fkey";
+            columns: ["duplicate_existing_venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_import_staging_import_batch_id_fkey";
+            columns: ["import_batch_id"];
+            isOneToOne: false;
+            referencedRelation: "import_batches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_import_staging_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       moderation_flags: {
         Row: {
           created_at: string;
@@ -868,6 +1012,9 @@ export type Database = {
       };
     };
     Enums: {
+      import_approval_status: "pending" | "approved" | "rejected" | "merged";
+      import_batch_status: "pending" | "processing" | "completed" | "failed";
+      import_duplicate_status: "unique" | "possible_duplicate" | "confirmed_duplicate";
       venue_identity_classification: "lgbtq_venue" | "lgbtq_friendly" | "historic_site" | "community_recommended";
       venue_category: "bar" | "club" | "lounge" | "cafe" | "performance" | "community";
       venue_submission_status: "imported" | "community_submitted" | "owner_submitted" | "admin_created";
