@@ -6,11 +6,13 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { venueClaimSchema, type VenueClaimValues } from "@/schemas/venue-claim";
 import { venueSubmissionSchema, type VenueSubmissionValues } from "@/schemas/venue-submission";
+import type { Tables } from "@/types/database";
 
 export type VenueSubmissionResult = {
   fieldErrors?: Partial<Record<keyof VenueSubmissionValues, string[]>>;
   message: string;
   ok: boolean;
+  values?: Partial<Record<keyof VenueSubmissionValues, string>>;
 };
 export type VenueClaimResult = {
   fieldErrors?: Partial<Record<keyof VenueClaimValues, string[]>>;
@@ -34,7 +36,7 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
   const user = await requireUser();
   if (!user) return { ok: false, message: "Sign in before submitting a venue." };
 
-  const parsed = venueSubmissionSchema.safeParse({
+  const rawValues = {
     address: formData.get("address"),
     category: formData.get("category"),
     city: formData.get("city"),
@@ -43,18 +45,20 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     imageUrl: formData.get("imageUrl"),
     name: formData.get("name"),
     websiteUrl: formData.get("websiteUrl")
-  });
+  };
+  const values = Object.fromEntries(Object.entries(rawValues).map(([key, value]) => [key, String(value ?? "")])) as Record<keyof VenueSubmissionValues, string>;
+  const parsed = venueSubmissionSchema.safeParse(rawValues);
 
   if (!parsed.success) {
     const { fieldErrors } = parsed.error.flatten();
-    return { fieldErrors, ok: false, message: "Check the highlighted fields." };
+    return { fieldErrors, ok: false, message: "Check the highlighted fields.", values };
   }
 
   const venueId = crypto.randomUUID();
   const slugBase = slugify(`${parsed.data.name}-${parsed.data.city}`);
   const slug = `${slugBase}-${venueId.slice(0, 8)}`;
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("venues").insert({
+  const { data: savedVenue, error } = await supabase.from("venues").insert({
     address: parsed.data.address,
     category: parsed.data.category,
     city: parsed.data.city,
@@ -77,18 +81,26 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     verification_score: 0,
     verification_status: "unverified",
     website_url: parsed.data.websiteUrl || null
-  } as never);
+  } as never).select("id, review_status, submission_status, verification_status, is_published").single();
 
   if (error) return { ok: false, message: `Venue could not be submitted: ${error.message}` };
+  const saved = savedVenue as Pick<Tables<"venues">, "id" | "is_published" | "review_status" | "submission_status" | "verification_status"> | null;
+  if (!saved || saved.review_status !== "pending_review" || saved.submission_status !== "community_submitted" || saved.verification_status !== "unverified" || saved.is_published) {
+    return { ok: false, message: "Venue submission did not save in the expected review state. Please try again or contact support.", values };
+  }
 
-  await supabase.from("audit_logs").insert({
+  const { error: auditError } = await supabase.from("audit_logs").insert({
     action: "venue_community_submitted",
     actor_id: user.id,
     metadata: { city: parsed.data.city, country: parsed.data.country, name: parsed.data.name },
     target_id: venueId,
     target_type: "venue"
   } as never);
+  if (auditError) {
+    return { ok: false, message: `Venue was saved for review, but the audit event failed: ${auditError.message}` };
+  }
 
+  revalidatePath("/admin");
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   return { ok: true, message: "Venue submitted. An admin will review it before publication." };

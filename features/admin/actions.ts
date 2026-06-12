@@ -35,6 +35,12 @@ function redirectWithFeedback(path?: string, key?: string) {
   }
 }
 
+function redirectWithError(path?: string, message = "save-failed") {
+  if (path && path.startsWith("/")) {
+    redirect(`${path}?error=${encodeURIComponent(message)}`);
+  }
+}
+
 async function refreshImportBatchCounts(batchId: string) {
   const supabase = await createSupabaseServerClient();
   const [imported, approved, rejected] = await Promise.all([
@@ -87,10 +93,17 @@ export async function softDeleteUser(userId: string) {
 
 export async function updateVenueStatus(venueId: string, status: VenueStatus, feedbackPath?: string) {
   const admin = await requireAdminProfile();
-  if (!["active", "hidden", "pending_review"].includes(status)) return;
+  if (!["active", "hidden", "pending_review"].includes(status)) {
+    redirectWithError(feedbackPath, "Invalid review status.");
+    return;
+  }
 
   const supabase = await createSupabaseServerClient();
-  await supabase.from("venues").update({ is_published: status === "active", review_status: status } as never).eq("id", venueId);
+  const { error } = await supabase.from("venues").update({ is_published: status === "active", review_status: status } as never).eq("id", venueId);
+  if (error) {
+    redirectWithError(feedbackPath, error.message);
+    return;
+  }
   await logAudit(admin.id, "venue_status_changed", "venue", venueId, { status });
   revalidatePath("/admin/venues");
   revalidatePath(`/admin/venues/${venueId}`);
@@ -101,7 +114,7 @@ export async function updateVenueMetadata(venueId: string, formData: FormData) {
   const admin = await requireAdminProfile();
   const category = String(formData.get("category") ?? "bar") as Database["public"]["Enums"]["venue_category"];
   const supabase = await createSupabaseServerClient();
-  await supabase
+  const { error } = await supabase
     .from("venues")
     .update({
       address: String(formData.get("address") ?? ""),
@@ -115,6 +128,10 @@ export async function updateVenueMetadata(venueId: string, formData: FormData) {
       website_url: String(formData.get("websiteUrl") ?? "")
     } as never)
     .eq("id", venueId);
+  if (error) {
+    redirectWithError(String(formData.get("feedbackPath") ?? ""), error.message);
+    return;
+  }
   await logAudit(admin.id, "venue_metadata_updated", "venue", venueId);
   await logAudit(admin.id, "venue_quality_recalculated", "venue", venueId);
   revalidatePath("/admin/venues");
@@ -125,10 +142,13 @@ export async function updateVenueMetadata(venueId: string, formData: FormData) {
 
 export async function updateVenueVerification(venueId: string, status: VenueVerificationStatus, feedbackPath?: string) {
   const admin = await requireAdminProfile();
-  if (!["unverified", "community_verified", "owner_verified", "admin_verified"].includes(status)) return;
+  if (!["unverified", "community_verified", "owner_verified", "admin_verified"].includes(status)) {
+    redirectWithError(feedbackPath, "Invalid verification status.");
+    return;
+  }
 
   const supabase = await createSupabaseServerClient();
-  await supabase
+  const { error } = await supabase
     .from("venues")
     .update({
       reviewed_at: new Date().toISOString(),
@@ -137,6 +157,10 @@ export async function updateVenueVerification(venueId: string, status: VenueVeri
       verification_status: status
     } as never)
     .eq("id", venueId);
+  if (error) {
+    redirectWithError(feedbackPath, error.message);
+    return;
+  }
   await logAudit(admin.id, "venue_verification_changed", "venue", venueId, { status, score: String(verificationScores[status]) });
   await logAudit(admin.id, "venue_readiness_recalculated", "venue", venueId, { reason: "verification_changed" });
   revalidatePath("/admin");
@@ -148,10 +172,17 @@ export async function updateVenueVerification(venueId: string, status: VenueVeri
 
 export async function updateVenueIdentityClassification(venueId: string, classification: VenueIdentityClassification, feedbackPath?: string) {
   const admin = await requireAdminProfile();
-  if (!["lgbtq_venue", "lgbtq_friendly", "historic_site", "community_recommended"].includes(classification)) return;
+  if (!["lgbtq_venue", "lgbtq_friendly", "historic_site", "community_recommended"].includes(classification)) {
+    redirectWithError(feedbackPath, "Invalid identity classification.");
+    return;
+  }
 
   const supabase = await createSupabaseServerClient();
-  await supabase.from("venues").update({ identity_classification: classification } as never).eq("id", venueId);
+  const { error } = await supabase.from("venues").update({ identity_classification: classification } as never).eq("id", venueId);
+  if (error) {
+    redirectWithError(feedbackPath, error.message);
+    return;
+  }
   await logAudit(admin.id, "venue_identity_changed", "venue", venueId, { classification });
   await logAudit(admin.id, "venue_readiness_recalculated", "venue", venueId, { reason: "identity_changed" });
   revalidatePath("/admin/venues");
@@ -163,7 +194,11 @@ export async function updateVenueIdentityClassification(venueId: string, classif
 export async function updateVenueFeatured(venueId: string, featured: boolean, feedbackPath?: string) {
   const admin = await requireAdminProfile();
   const supabase = await createSupabaseServerClient();
-  await supabase.from("venues").update({ featured, featured_at: featured ? new Date().toISOString() : null } as never).eq("id", venueId);
+  const { error } = await supabase.from("venues").update({ featured, featured_at: featured ? new Date().toISOString() : null } as never).eq("id", venueId);
+  if (error) {
+    redirectWithError(feedbackPath, error.message);
+    return;
+  }
   await logAudit(admin.id, featured ? "venue_featured" : "venue_unfeatured", "venue", venueId);
   await logAudit(admin.id, "venue_readiness_recalculated", "venue", venueId, { reason: "featured_changed" });
   revalidatePath("/admin");
@@ -186,12 +221,15 @@ export async function createBulkOperationDraft(operationType: VenueBulkOperation
 export async function updateVenueSource(venueId: string, formData: FormData) {
   const admin = await requireAdminProfile();
   const submissionStatus = String(formData.get("submissionStatus") ?? "admin_created") as VenueSubmissionStatus;
-  if (!["imported", "community_submitted", "owner_submitted", "admin_created"].includes(submissionStatus)) return;
+  if (!["imported", "community_submitted", "owner_submitted", "admin_created"].includes(submissionStatus)) {
+    redirectWithError(String(formData.get("feedbackPath") ?? ""), "Invalid submission status.");
+    return;
+  }
 
   const source = String(formData.get("source") ?? "").trim();
   const sourceId = String(formData.get("sourceId") ?? "").trim();
   const supabase = await createSupabaseServerClient();
-  await supabase
+  const { error } = await supabase
     .from("venues")
     .update({
       source: source || null,
@@ -199,6 +237,10 @@ export async function updateVenueSource(venueId: string, formData: FormData) {
       submission_status: submissionStatus
     } as never)
     .eq("id", venueId);
+  if (error) {
+    redirectWithError(String(formData.get("feedbackPath") ?? ""), error.message);
+    return;
+  }
   await logAudit(admin.id, "venue_source_changed", "venue", venueId, { source: source || null, sourceId: sourceId || null, submissionStatus });
   revalidatePath("/admin");
   revalidatePath("/admin/venues");

@@ -1,7 +1,7 @@
 "use client";
 
 import { Send } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,35 +17,53 @@ const categories: Array<{ label: string; value: Enums<"venue_category"> }> = [
   { label: "Performance", value: "performance" },
   { label: "Community", value: "community" }
 ];
+const initialValues = {
+  address: "",
+  category: "bar",
+  city: "",
+  country: "",
+  description: "",
+  imageUrl: "",
+  name: "",
+  websiteUrl: ""
+};
 
 function fieldError(result: VenueSubmissionResult | null, name: keyof NonNullable<VenueSubmissionResult["fieldErrors"]>) {
   return result?.fieldErrors?.[name]?.[0];
 }
 
 export function VenueSubmissionForm() {
-  const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<VenueSubmissionResult | null>(null);
+  const [values, setValues] = useState(initialValues);
+
+  function updateValue(name: keyof typeof initialValues, value: string) {
+    setValues((current) => ({ ...current, [name]: value }));
+  }
 
   function submit(formData: FormData) {
     startTransition(async () => {
       const actionResult = await submitCommunityVenue(formData);
       setResult(actionResult);
-      if (actionResult.ok) formRef.current?.reset();
+      if (actionResult.ok) {
+        setValues(initialValues);
+      } else if (actionResult.values) {
+        setValues((current) => ({ ...current, ...actionResult.values }));
+      }
     });
   }
 
   return (
-    <form ref={formRef} action={submit} className="grid gap-5">
+    <form action={submit} className="grid gap-5">
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="name">Venue name</Label>
-          <Input id="name" name="name" aria-invalid={Boolean(fieldError(result, "name"))} />
+          <Input id="name" name="name" value={values.name} onChange={(event) => updateValue("name", event.target.value)} aria-invalid={Boolean(fieldError(result, "name"))} />
           {fieldError(result, "name") ? <p className="text-sm text-destructive">{fieldError(result, "name")}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="category">Type</Label>
-          <select id="category" name="category" className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <select id="category" name="category" value={values.category} onChange={(event) => updateValue("category", event.target.value)} className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             {categories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
           </select>
         </div>
@@ -53,35 +71,35 @@ export function VenueSubmissionForm() {
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="city">City</Label>
-          <Input id="city" name="city" aria-invalid={Boolean(fieldError(result, "city"))} />
+          <Input id="city" name="city" value={values.city} onChange={(event) => updateValue("city", event.target.value)} aria-invalid={Boolean(fieldError(result, "city"))} />
           {fieldError(result, "city") ? <p className="text-sm text-destructive">{fieldError(result, "city")}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="country">Country</Label>
-          <Input id="country" name="country" aria-invalid={Boolean(fieldError(result, "country"))} />
+          <Input id="country" name="country" value={values.country} onChange={(event) => updateValue("country", event.target.value)} aria-invalid={Boolean(fieldError(result, "country"))} />
           {fieldError(result, "country") ? <p className="text-sm text-destructive">{fieldError(result, "country")}</p> : null}
         </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="address">Address or neighborhood</Label>
-        <Input id="address" name="address" aria-invalid={Boolean(fieldError(result, "address"))} />
+        <Input id="address" name="address" value={values.address} onChange={(event) => updateValue("address", event.target.value)} aria-invalid={Boolean(fieldError(result, "address"))} />
         {fieldError(result, "address") ? <p className="text-sm text-destructive">{fieldError(result, "address")}</p> : null}
       </div>
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="websiteUrl">Website</Label>
-          <Input id="websiteUrl" name="websiteUrl" type="url" placeholder="https://example.com" aria-invalid={Boolean(fieldError(result, "websiteUrl"))} />
+          <Input id="websiteUrl" name="websiteUrl" type="url" value={values.websiteUrl} onChange={(event) => updateValue("websiteUrl", event.target.value)} placeholder="https://example.com" aria-invalid={Boolean(fieldError(result, "websiteUrl"))} />
           {fieldError(result, "websiteUrl") ? <p className="text-sm text-destructive">{fieldError(result, "websiteUrl")}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="imageUrl">Image URL optional</Label>
-          <Input id="imageUrl" name="imageUrl" type="url" placeholder="https://images.unsplash.com/..." aria-invalid={Boolean(fieldError(result, "imageUrl"))} />
+          <Input id="imageUrl" name="imageUrl" type="url" value={values.imageUrl} onChange={(event) => updateValue("imageUrl", event.target.value)} placeholder="https://images.unsplash.com/..." aria-invalid={Boolean(fieldError(result, "imageUrl"))} />
           {fieldError(result, "imageUrl") ? <p className="text-sm text-destructive">{fieldError(result, "imageUrl")}</p> : null}
         </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
-        <Textarea id="description" name="description" aria-invalid={Boolean(fieldError(result, "description"))} />
+        <Textarea id="description" name="description" value={values.description} onChange={(event) => updateValue("description", event.target.value)} aria-invalid={Boolean(fieldError(result, "description"))} />
         {fieldError(result, "description") ? <p className="text-sm text-destructive">{fieldError(result, "description")}</p> : null}
       </div>
       {result ? <p className={result.ok ? "text-sm font-semibold text-sage" : "text-sm text-destructive"} role="status">{result.message}</p> : null}

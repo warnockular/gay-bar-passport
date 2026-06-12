@@ -1,4 +1,4 @@
-import { CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import type { Tables } from "@/types/database";
 
 type AdminVenuePageProps = {
   params: Promise<{ venueId: string }>;
-  searchParams?: Promise<{ updated?: string }>;
+  searchParams?: Promise<{ error?: string; updated?: string }>;
 };
 
 type Venue = Tables<"venues">;
@@ -54,6 +54,16 @@ function StatusMessage({ updated, section }: { section: string; updated?: string
   );
 }
 
+function ErrorMessage({ error }: { error?: string }) {
+  if (!error) return null;
+  return (
+    <p className="mt-4 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-semibold text-destructive" role="alert">
+      <AlertCircle className="h-4 w-4" aria-hidden="true" />
+      {error}
+    </p>
+  );
+}
+
 function Field({ children, label: fieldLabel }: { children: React.ReactNode; label: string }) {
   return (
     <label className="space-y-2 text-sm font-semibold">
@@ -69,7 +79,7 @@ function InputClass() {
 
 export default async function AdminVenuePage({ params, searchParams }: AdminVenuePageProps) {
   const { venueId } = await params;
-  const { updated } = (await searchParams) ?? {};
+  const { error, updated } = (await searchParams) ?? {};
   const [venue, claims] = await Promise.all([getAdminVenue(venueId), listVenueClaimsForVenue(venueId)]);
   if (!venue) notFound();
 
@@ -89,6 +99,7 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
           <Badge>{venue.completeness_score}/100 Complete</Badge>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">{venue.city}, {venue.country}</p>
+        <ErrorMessage error={error} />
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_24rem]">
