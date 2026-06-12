@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PageShell } from "@/components/layout/page-shell";
+import { buttonVariants } from "@/components/ui/button";
 import { VenueDirectory } from "@/features/venues/venue-directory";
 import { getCurrentUser } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 import { listCountries, listFavoriteVenueIds, listPublishedVenues, listTags } from "@/services/venues";
 import type { Enums } from "@/types/database";
 
@@ -44,6 +47,11 @@ export default async function VenuesPage({ searchParams }: VenuesPageProps) {
       title="Browse LGBTQ+ venues around the world."
       copy="Search the first curated directory by city, country, venue type, and travel mood tags."
     >
+      <div className="mb-6 flex flex-wrap gap-3">
+        <Link className={cn(buttonVariants({ variant: "outline" }))} href={user ? "/venues/submit" : "/auth/sign-in?next=/venues/submit"}>
+          Submit Venue
+        </Link>
+      </div>
       <VenueDirectory
         categories={categories}
         countries={countries}

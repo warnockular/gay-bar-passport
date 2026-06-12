@@ -18,7 +18,7 @@ const protectedRoutes = [
 ];
 
 function shouldProtectPath(pathname: string) {
-  return protectedRoutes.some((route) => pathname.startsWith(route)) || (pathname.startsWith("/venues/") && pathname.endsWith("/log-visit"));
+  return protectedRoutes.some((route) => pathname.startsWith(route)) || pathname === "/venues/submit" || (pathname.startsWith("/venues/") && pathname.endsWith("/log-visit"));
 }
 
 // Middleware keeps protected route behavior close to the request boundary.
