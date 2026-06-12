@@ -16,6 +16,9 @@ const actionLabels: Record<string, string> = {
   user_soft_deleted: "User soft deleted",
   user_suspended: "User suspended",
   venue_bulk_operation_draft_created: "Venue bulk operation draft created",
+  venue_claim_approved: "Venue ownership claim approved",
+  venue_claim_rejected: "Venue ownership claim rejected",
+  venue_claim_requested: "Venue ownership claim requested",
   venue_community_submitted: "Venue submitted by community member",
   venue_featured: "Venue marked as featured",
   venue_identity_changed: "Venue identity classification changed",
@@ -23,6 +26,7 @@ const actionLabels: Record<string, string> = {
   venue_import_merge_marked: "Staged venue marked for merge",
   venue_import_rejected: "Staged venue rejected",
   venue_metadata_updated: "Venue metadata updated",
+  venue_owner_linked: "Venue owner linked",
   venue_quality_recalculated: "Venue quality recalculated",
   venue_readiness_recalculated: "Venue readiness recalculated",
   venue_source_changed: "Venue source details changed",
@@ -32,7 +36,7 @@ const actionLabels: Record<string, string> = {
 };
 
 const actionOptions = Object.keys(actionLabels).sort((a, b) => actionLabels[a].localeCompare(actionLabels[b]));
-const targetTypeOptions = ["comment", "import_batch", "journal", "report", "user", "venue", "venue_bulk_operation", "venue_import_staging"];
+const targetTypeOptions = ["comment", "import_batch", "journal", "report", "user", "venue", "venue_bulk_operation", "venue_claim", "venue_import_staging"];
 
 function humanize(value: string) {
   return value
@@ -49,17 +53,23 @@ function actionLabel(action: string) {
 function metadataKeyLabel(key: string) {
   const labels: Record<string, string> = {
     batchId: "Import batch ID",
+    claimId: "Claim ID",
+    claimantId: "Claimant ID",
+    claimantName: "Claimant name",
     classification: "Identity classification",
     existingVenueId: "Existing venue ID",
     operationType: "Operation type",
     reason: "Reason",
+    reviewNotes: "Review notes",
+    roleTitle: "Role title",
     score: "Verification score",
     source: "Source",
     sourceId: "Source ID",
     sourceName: "Source name",
     sourceType: "Source type",
     status: "Status",
-    submissionStatus: "Submission status"
+    submissionStatus: "Submission status",
+    venueId: "Venue ID"
   };
 
   return labels[key] ?? humanize(key.replace(/([a-z])([A-Z])/g, "$1 $2"));

@@ -578,6 +578,79 @@ export type Database = {
           }
         ];
       };
+      venue_claims: {
+        Row: {
+          claimant_email: string;
+          claimant_id: string;
+          claimant_name: string;
+          created_at: string;
+          evidence_url: string | null;
+          id: string;
+          notes: string | null;
+          review_notes: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          role_title: string | null;
+          status: Database["public"]["Enums"]["venue_claim_status"];
+          updated_at: string;
+          venue_id: string;
+        };
+        Insert: {
+          claimant_email: string;
+          claimant_id: string;
+          claimant_name: string;
+          created_at?: string;
+          evidence_url?: string | null;
+          id?: string;
+          notes?: string | null;
+          review_notes?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          role_title?: string | null;
+          status?: Database["public"]["Enums"]["venue_claim_status"];
+          updated_at?: string;
+          venue_id: string;
+        };
+        Update: {
+          claimant_email?: string;
+          claimant_id?: string;
+          claimant_name?: string;
+          created_at?: string;
+          evidence_url?: string | null;
+          id?: string;
+          notes?: string | null;
+          review_notes?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          role_title?: string | null;
+          status?: Database["public"]["Enums"]["venue_claim_status"];
+          updated_at?: string;
+          venue_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_claims_claimant_id_fkey";
+            columns: ["claimant_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_claims_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_claims_venue_id_fkey";
+            columns: ["venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       passport_stamps: {
         Row: {
           city: string;
@@ -1071,6 +1144,7 @@ export type Database = {
       import_approval_status: "pending" | "approved" | "rejected" | "merged";
       import_batch_status: "pending" | "processing" | "completed" | "failed";
       import_duplicate_status: "unique" | "possible_duplicate" | "confirmed_duplicate";
+      venue_claim_status: "pending" | "approved" | "rejected" | "cancelled";
       venue_identity_classification: "lgbtq_venue" | "lgbtq_friendly" | "historic_site" | "community_recommended";
       venue_bulk_operation_type: "bulk_verification" | "bulk_classification" | "bulk_feature";
       venue_category: "bar" | "club" | "lounge" | "cafe" | "performance" | "community";

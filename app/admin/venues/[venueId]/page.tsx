@@ -8,9 +8,10 @@ import {
   updateVenueMetadata,
   updateVenueSource,
   updateVenueStatus,
-  updateVenueVerification
+  updateVenueVerification,
+  reviewVenueClaim
 } from "@/features/admin/actions";
-import { getAdminVenue } from "@/services/admin";
+import { getAdminVenue, listVenueClaimsForVenue } from "@/services/admin";
 import type { Tables } from "@/types/database";
 
 type AdminVenuePageProps = {
@@ -69,11 +70,12 @@ function InputClass() {
 export default async function AdminVenuePage({ params, searchParams }: AdminVenuePageProps) {
   const { venueId } = await params;
   const { updated } = (await searchParams) ?? {};
-  const venue = await getAdminVenue(venueId);
+  const [venue, claims] = await Promise.all([getAdminVenue(venueId), listVenueClaimsForVenue(venueId)]);
   if (!venue) notFound();
 
   const feedbackPath = `/admin/venues/${venue.id}`;
   const isFeaturedReady = venue.readiness_status === "featured_ready";
+  const pendingClaims = claims.filter((claim) => claim.status === "pending");
 
   return (
     <div className="space-y-6">
@@ -233,6 +235,56 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
               <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Save source state</button>
               <StatusMessage updated={updated} section="source" />
             </form>
+          </Card>
+
+          <Card className="bg-card/90 p-6">
+            <h2 className="font-serif text-3xl font-semibold">Ownership Claims</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Current owner link: {venue.claimed_by ? `Profile ${venue.claimed_by}` : "No approved owner"}
+            </p>
+            <StatusMessage updated={updated} section="claim-approved" />
+            <StatusMessage updated={updated} section="claim-rejected" />
+            {pendingClaims.length ? (
+              <div className="mt-5 space-y-4">
+                {pendingClaims.map((claim) => (
+                  <div key={claim.id} className="rounded-md border border-border bg-background/70 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{claim.claimant_name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{claim.role_title ?? "Role not provided"} · {claim.claimant_email}</p>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{claim.notes ?? "No notes provided."}</p>
+                        {claim.evidence_url ? <a className="mt-2 inline-block text-sm font-semibold text-primary hover:underline" href={claim.evidence_url} target="_blank" rel="noreferrer">Open proof URL</a> : null}
+                      </div>
+                      <Badge>Pending</Badge>
+                    </div>
+                    <div className="mt-4 grid gap-3">
+                      <form action={reviewVenueClaim.bind(null, claim.id, "approved")}>
+                        <input type="hidden" name="feedbackPath" value={feedbackPath} />
+                        <textarea name="reviewNotes" className="mb-2 min-h-20 w-full rounded-md border border-input bg-background/80 px-3 py-2 text-sm" placeholder="Review note optional" />
+                        <button className="w-full rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground" type="submit">Approve and link owner</button>
+                      </form>
+                      <form action={reviewVenueClaim.bind(null, claim.id, "rejected")}>
+                        <input type="hidden" name="feedbackPath" value={feedbackPath} />
+                        <textarea name="reviewNotes" className="mb-2 min-h-20 w-full rounded-md border border-input bg-background/80 px-3 py-2 text-sm" placeholder="Rejection reason optional" />
+                        <button className="w-full rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Reject claim</button>
+                      </form>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-5 rounded-md border border-border bg-background/70 p-3 text-sm text-muted-foreground">No pending ownership claims for this venue.</p>
+            )}
+            {claims.filter((claim) => claim.status !== "pending").length ? (
+              <div className="mt-5">
+                <p className="text-sm font-semibold">Reviewed claims</p>
+                <div className="mt-3 space-y-2">
+                  {claims.filter((claim) => claim.status !== "pending").map((claim) => (
+                    <p key={claim.id} className="text-xs text-muted-foreground">{label(claim.status)} · {claim.claimant_name} · {claim.reviewed_at ? new Date(claim.reviewed_at).toLocaleString() : "Not dated"}</p>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </Card>
         </aside>
       </div>

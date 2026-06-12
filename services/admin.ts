@@ -25,6 +25,7 @@ export type AdminSummary = {
     publishReady: number;
   };
   venueModeration: {
+    pendingClaims: number;
     imported: number;
     pendingReview: number;
     unverified: number;
@@ -41,6 +42,11 @@ export type AdminBulkOperationDraft = Tables<"venue_bulk_operation_drafts">;
 export type AdminStagedVenue = Tables<"venue_import_staging"> & {
   duplicateVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country"> | null;
 };
+export type AdminVenueClaim = Tables<"venue_claims"> & {
+  claimant?: Pick<Tables<"profiles">, "display_name" | "id"> | null;
+  reviewer?: Pick<Tables<"profiles">, "display_name" | "id"> | null;
+  venue?: Pick<Tables<"venues">, "city" | "country" | "id" | "name" | "slug" | "verification_status"> | null;
+};
 export type AdminJournal = Tables<"journal_entries"> & { profiles?: Pick<Tables<"profiles">, "display_name"> | null };
 export type AdminComment = Tables<"journal_comments"> & {
   journal_entries?: Pick<Tables<"journal_entries">, "title"> | null;
@@ -56,7 +62,7 @@ export type AdminAuditLog = Tables<"audit_logs"> & {
   venue?: Pick<Tables<"venues">, "city" | "country" | "id" | "name"> | null;
 };
 
-async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_bulk_operation_drafts" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
+async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_claims" | "venue_bulk_operation_drafts" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
   const supabase = await createSupabaseServerClient();
   let query = supabase.from(table).select("*", { count: "exact", head: true });
   if (filter) query = filter(query);
@@ -74,6 +80,7 @@ type TablesMap = {
   passport_stamps: Tables<"passport_stamps">;
   profiles: Tables<"profiles">;
   venues: Tables<"venues">;
+  venue_claims: Tables<"venue_claims">;
   venue_bulk_operation_drafts: Tables<"venue_bulk_operation_drafts">;
   venue_import_staging: Tables<"venue_import_staging">;
   visits: Tables<"visits">;
@@ -95,6 +102,7 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     moderationQueue,
     venueUnverified,
     venuePendingReview,
+    venuePendingClaims,
     venueVerified,
     venueImported,
     pendingImports,
@@ -121,6 +129,7 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     count("moderation_flags", (query) => query.eq("status", "open")),
     count("venues", (query) => query.eq("verification_status", "unverified")),
     count("venues", (query) => query.eq("review_status", "pending_review")),
+    count("venue_claims", (query) => query.eq("status", "pending")),
     count("venues", (query) => query.neq("verification_status", "unverified")),
     count("venues", (query) => query.eq("submission_status", "imported")),
     count("import_batches", (query) => query.in("status", ["pending", "processing"])),
@@ -167,6 +176,7 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     },
     venueModeration: {
       imported: venueImported,
+      pendingClaims: venuePendingClaims,
       pendingReview: venuePendingReview,
       unverified: venueUnverified,
       verified: venueVerified
@@ -199,12 +209,19 @@ export type VenueQueueSort = "name" | "newest" | "score";
 export async function listAdminVenueReviewQueue(filter: VenueQueueFilter = "unverified", sort: VenueQueueSort = "newest") {
   const supabase = await createSupabaseServerClient();
   let query = supabase.from("venues").select("*");
+  let pendingClaimVenueIds: string[] = [];
+
+  if (filter === "claimed_review") {
+    const { data: claims } = await supabase.from("venue_claims").select("venue_id").eq("status", "pending").limit(100);
+    pendingClaimVenueIds = Array.from(new Set(((claims ?? []) as Array<Pick<Tables<"venue_claims">, "venue_id">>).map((claim) => claim.venue_id)));
+    if (!pendingClaimVenueIds.length) return [];
+  }
 
   if (filter === "unverified") query = query.eq("verification_status", "unverified");
   if (filter === "community_submitted") query = query.eq("submission_status", "community_submitted");
   if (filter === "owner_submitted") query = query.eq("submission_status", "owner_submitted");
   if (filter === "imported_review") query = query.eq("submission_status", "imported").eq("review_status", "pending_review");
-  if (filter === "claimed_review") query = query.not("claimed_by", "is", null).is("reviewed_at", null);
+  if (filter === "claimed_review") query = query.in("id", pendingClaimVenueIds);
 
   if (sort === "name") query = query.order("name", { ascending: true });
   if (sort === "score") query = query.order("verification_score", { ascending: true }).order("name", { ascending: true });
@@ -212,6 +229,31 @@ export async function listAdminVenueReviewQueue(filter: VenueQueueFilter = "unve
 
   const { data } = await query.limit(100);
   return (data ?? []) as AdminVenue[];
+}
+
+export async function listVenueClaims(status: Tables<"venue_claims">["status"] | "all" = "pending") {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("venue_claims")
+    .select("*, venues(id, name, slug, city, country, verification_status), claimant:profiles!venue_claims_claimant_id_fkey(id, display_name), reviewer:profiles!venue_claims_reviewed_by_fkey(id, display_name)")
+    .order("created_at", { ascending: false });
+
+  if (status !== "all") query = query.eq("status", status);
+
+  const { data } = await query.limit(100);
+  return ((data ?? []) as Array<Tables<"venue_claims"> & {
+    claimant?: AdminVenueClaim["claimant"];
+    reviewer?: AdminVenueClaim["reviewer"];
+    venues?: AdminVenueClaim["venue"];
+  }>).map((claim) => ({
+    ...claim,
+    venue: claim.venues ?? null
+  }));
+}
+
+export async function listVenueClaimsForVenue(venueId: string) {
+  const claims = await listVenueClaims("all");
+  return claims.filter((claim) => claim.venue_id === venueId);
 }
 
 export async function getAdminVenue(venueId: string) {

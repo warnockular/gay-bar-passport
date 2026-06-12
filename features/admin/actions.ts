@@ -15,6 +15,7 @@ type VenueSubmissionStatus = Tables<"venues">["submission_status"];
 type ModerationStatus = Tables<"journal_entries">["moderation_status"];
 type ImportApprovalStatus = Tables<"venue_import_staging">["approval_status"];
 type VenueBulkOperationType = Tables<"venue_bulk_operation_drafts">["operation_type"];
+type VenueClaimStatus = Tables<"venue_claims">["status"];
 
 const verificationScores: Record<VenueVerificationStatus, number> = {
   admin_verified: 100,
@@ -204,6 +205,62 @@ export async function updateVenueSource(venueId: string, formData: FormData) {
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
   redirectWithFeedback(String(formData.get("feedbackPath") ?? ""), "source");
+}
+
+export async function reviewVenueClaim(claimId: string, status: Extract<VenueClaimStatus, "approved" | "rejected">, formData: FormData) {
+  const admin = await requireAdminProfile();
+  if (!["approved", "rejected"].includes(status)) return;
+
+  const reviewNotes = String(formData.get("reviewNotes") ?? "").trim();
+  const feedbackPath = String(formData.get("feedbackPath") ?? "");
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("venue_claims").select("*").eq("id", claimId).maybeSingle();
+  const claim = data as Tables<"venue_claims"> | null;
+  if (!claim || claim.status !== "pending") {
+    redirectWithFeedback(feedbackPath, "claim-unavailable");
+    return;
+  }
+
+  await supabase
+    .from("venue_claims")
+    .update({
+      review_notes: reviewNotes || null,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin.id,
+      status
+    } as never)
+    .eq("id", claimId);
+
+  if (status === "approved") {
+    await supabase
+      .from("venues")
+      .update({
+        claimed_at: new Date().toISOString(),
+        claimed_by: claim.claimant_id,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: admin.id,
+        verification_score: verificationScores.owner_verified,
+        verification_status: "owner_verified"
+      } as never)
+      .eq("id", claim.venue_id);
+  }
+
+  await logAudit(admin.id, status === "approved" ? "venue_claim_approved" : "venue_claim_rejected", "venue_claim", claimId, {
+    claimantId: claim.claimant_id,
+    reviewNotes: reviewNotes || null,
+    venueId: claim.venue_id
+  });
+  if (status === "approved") {
+    await logAudit(admin.id, "venue_owner_linked", "venue", claim.venue_id, { claimId, claimantId: claim.claimant_id });
+    await logAudit(admin.id, "venue_verification_changed", "venue", claim.venue_id, { status: "owner_verified", score: String(verificationScores.owner_verified) });
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/venue-claims");
+  revalidatePath("/admin/venues");
+  revalidatePath("/admin/venues/review");
+  revalidatePath(`/admin/venues/${claim.venue_id}`);
+  redirectWithFeedback(feedbackPath, status === "approved" ? "claim-approved" : "claim-rejected");
 }
 
 export async function createImportBatch(formData: FormData) {

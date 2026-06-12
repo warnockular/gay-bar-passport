@@ -13,7 +13,7 @@ const filters: Array<{ label: string; value: VenueQueueFilter }> = [
   { label: "Community submitted", value: "community_submitted" },
   { label: "Owner submitted", value: "owner_submitted" },
   { label: "Imported awaiting review", value: "imported_review" },
-  { label: "Claimed awaiting review", value: "claimed_review" },
+  { label: "Ownership claims", value: "claimed_review" },
   { label: "All venues", value: "all" }
 ];
 

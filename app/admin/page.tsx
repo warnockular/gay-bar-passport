@@ -36,6 +36,7 @@ export default async function AdminDashboardPage() {
         <SummaryCard label="Moderation queue" value={summary.moderationQueue} />
         <SummaryCard label="Unverified venues" value={summary.venueModeration.unverified} />
         <SummaryCard label="Pending venue review" value={summary.venueModeration.pendingReview} />
+        <SummaryCard label="Pending owner claims" value={summary.venueModeration.pendingClaims} />
         <SummaryCard label="Verified venues" value={summary.venueModeration.verified} />
         <SummaryCard label="Imported venues" value={summary.venueModeration.imported} />
         <SummaryCard label="Pending imports" value={summary.importReadiness.pendingImports} />

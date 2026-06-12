@@ -4,10 +4,16 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { venueClaimSchema, type VenueClaimValues } from "@/schemas/venue-claim";
 import { venueSubmissionSchema, type VenueSubmissionValues } from "@/schemas/venue-submission";
 
 export type VenueSubmissionResult = {
   fieldErrors?: Partial<Record<keyof VenueSubmissionValues, string[]>>;
+  message: string;
+  ok: boolean;
+};
+export type VenueClaimResult = {
+  fieldErrors?: Partial<Record<keyof VenueClaimValues, string[]>>;
   message: string;
   ok: boolean;
 };
@@ -86,4 +92,69 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   return { ok: true, message: "Venue submitted. An admin will review it before publication." };
+}
+
+export async function requestVenueOwnership(venueId: string, venueSlug: string, formData: FormData): Promise<VenueClaimResult> {
+  if (!isSupabaseConfigured) {
+    return { ok: false, message: "Supabase is required to request venue ownership." };
+  }
+
+  const user = await requireUser();
+  if (!user) return { ok: false, message: "Sign in before requesting ownership." };
+
+  const parsed = venueClaimSchema.safeParse({
+    claimantEmail: formData.get("claimantEmail"),
+    claimantName: formData.get("claimantName"),
+    evidenceUrl: formData.get("evidenceUrl"),
+    notes: formData.get("notes"),
+    roleTitle: formData.get("roleTitle")
+  });
+
+  if (!parsed.success) {
+    const { fieldErrors } = parsed.error.flatten();
+    return { fieldErrors, ok: false, message: "Check the highlighted fields." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: existingClaim } = await supabase
+    .from("venue_claims")
+    .select("id")
+    .eq("venue_id", venueId)
+    .eq("claimant_id", user.id)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (existingClaim) {
+    return { ok: false, message: "You already have a pending ownership request for this venue." };
+  }
+
+  const { data, error } = await supabase
+    .from("venue_claims")
+    .insert({
+      claimant_email: parsed.data.claimantEmail,
+      claimant_id: user.id,
+      claimant_name: parsed.data.claimantName,
+      evidence_url: parsed.data.evidenceUrl || null,
+      notes: parsed.data.notes,
+      role_title: parsed.data.roleTitle,
+      venue_id: venueId
+    } as never)
+    .select("id")
+    .single();
+
+  const claim = data as { id: string } | null;
+  if (error || !claim) return { ok: false, message: `Ownership request could not be submitted: ${error?.message ?? "Unknown error"}` };
+
+  await supabase.from("audit_logs").insert({
+    action: "venue_claim_requested",
+    actor_id: user.id,
+    metadata: { claimantName: parsed.data.claimantName, roleTitle: parsed.data.roleTitle, venueId },
+    target_id: claim.id,
+    target_type: "venue_claim"
+  } as never);
+
+  revalidatePath(`/venues/${venueSlug}`);
+  revalidatePath("/admin/venue-claims");
+  revalidatePath("/admin/venues/review");
+  return { ok: true, message: "Ownership request submitted. An admin will review it before linking you to the venue." };
 }

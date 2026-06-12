@@ -2,7 +2,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExternalLink, MapPin, Stamp } from "lucide-react";
+import { ExternalLink, MapPin, ShieldCheck, Stamp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -75,6 +75,19 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
             <Stamp className="h-4 w-4" aria-hidden="true" />
             Log visit
           </Link>
+          <Link className={cn(buttonVariants({ variant: "outline" }), "w-full")} href={user ? `/venues/${venue.slug}/claim` : `/auth/sign-in?next=${encodeURIComponent(`/venues/${venue.slug}/claim`)}`}>
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            Claim this venue
+          </Link>
+          <div className="rounded-md border border-border bg-background/70 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Owner verification</p>
+            <p className="mt-2 text-sm font-semibold">
+              {venue.claimed_by ? "Owner linked" : venue.verification_status === "owner_verified" ? "Owner verified" : "Not owner verified"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {venue.claimed_by ? "This venue has an approved owner profile." : "Venue owners can request admin review."}
+            </p>
+          </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Address</p>
             <p className="mt-2 text-sm">{venue.address ?? venue.neighborhood ?? `${venue.city}, ${venue.country}`}</p>
