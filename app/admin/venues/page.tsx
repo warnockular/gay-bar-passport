@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { createModerationFlag, updateVenueStatus } from "@/features/admin/actions";
-import { listAdminVenues } from "@/services/admin";
+import { createBulkOperationDraft, createModerationFlag, updateVenueStatus } from "@/features/admin/actions";
+import { listAdminVenues, listBulkOperationDrafts } from "@/services/admin";
 
 export default async function AdminVenuesPage() {
-  const venues = await listAdminVenues();
+  const [venues, bulkDrafts] = await Promise.all([listAdminVenues(), listBulkOperationDrafts()]);
 
   return (
     <div>
@@ -14,6 +14,18 @@ export default async function AdminVenuesPage() {
       <Link href="/admin/venues/review" className="mt-4 inline-block rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold text-primary hover:bg-muted">
         Open venue moderation queue
       </Link>
+      <Card className="mt-6 bg-card/90 p-5">
+        <h2 className="font-serif text-2xl font-semibold">Bulk operations foundation</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Draft placeholders only. No bulk changes run in Phase 11E.</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {(["bulk_verification", "bulk_classification", "bulk_feature"] as const).map((operation) => (
+            <form key={operation} action={createBulkOperationDraft.bind(null, operation)}>
+              <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">{operation}</button>
+            </form>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">{bulkDrafts.length} draft placeholder(s) recorded.</p>
+      </Card>
       <div className="mt-8 space-y-4">
         {venues.map((venue) => (
           <Card key={venue.id} className="bg-card/90 p-5">
@@ -27,10 +39,14 @@ export default async function AdminVenuesPage() {
                   <Badge>{venue.verification_status}</Badge>
                   <Badge>{venue.submission_status}</Badge>
                   <Badge>{venue.identity_classification}</Badge>
+                  <Badge>{venue.readiness_status}</Badge>
+                  <Badge>{venue.completeness_score}/100 complete</Badge>
+                  {venue.featured ? <Badge>featured</Badge> : null}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Source: {venue.source ? `${venue.source}${venue.source_id ? ` · ${venue.source_id}` : ""}` : "manual"}
                 </p>
+                {venue.missing_data.length ? <p className="mt-2 text-xs text-muted-foreground">Missing: {venue.missing_data.join(", ")}</p> : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 {(["active", "hidden", "pending_review"] as const).map((status) => (

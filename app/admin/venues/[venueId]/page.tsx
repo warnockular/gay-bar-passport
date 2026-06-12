@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { updateVenueIdentityClassification, updateVenueMetadata, updateVenueSource, updateVenueStatus, updateVenueVerification } from "@/features/admin/actions";
+import { updateVenueFeatured, updateVenueIdentityClassification, updateVenueMetadata, updateVenueSource, updateVenueStatus, updateVenueVerification } from "@/features/admin/actions";
 import { getAdminVenue } from "@/services/admin";
 
 type AdminVenuePageProps = {
@@ -28,6 +28,7 @@ export default async function AdminVenuePage({ params }: AdminVenuePageProps) {
             <input name="neighborhood" defaultValue={venue.neighborhood ?? ""} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Neighborhood" />
             <input name="address" defaultValue={venue.address ?? ""} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Address" />
             <input name="websiteUrl" defaultValue={venue.website_url ?? ""} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Website" />
+            <input name="openingHours" defaultValue={venue.opening_hours ?? ""} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Hours" />
             <textarea name="description" defaultValue={venue.description ?? ""} className="min-h-32 rounded-md border border-input bg-background/80 px-3 py-2 text-sm" />
             <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Save metadata</button>
           </form>
@@ -46,6 +47,18 @@ export default async function AdminVenuePage({ params }: AdminVenuePageProps) {
         <Card className="bg-card/90 p-6 lg:col-start-2">
           <h2 className="font-serif text-3xl font-semibold">Data foundation</h2>
           <dl className="mt-5 space-y-3 text-sm">
+            <div>
+              <dt className="font-semibold">Completeness</dt>
+              <dd className="text-muted-foreground">{venue.completeness_score}/100 · {venue.readiness_status}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Missing data</dt>
+              <dd className="text-muted-foreground">{venue.missing_data.length ? venue.missing_data.join(", ") : "No tracked gaps"}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Featured</dt>
+              <dd className="text-muted-foreground">{venue.featured ? `Featured ${venue.featured_at ?? ""}` : "Not featured"}</dd>
+            </div>
             <div>
               <dt className="font-semibold">Verification</dt>
               <dd className="text-muted-foreground">{venue.verification_status} · score {venue.verification_score}/100</dd>
@@ -72,6 +85,17 @@ export default async function AdminVenuePage({ params }: AdminVenuePageProps) {
             </div>
           </dl>
           <div className="mt-6 space-y-5">
+            <div>
+              <h3 className="font-semibold">Feature controls</h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <form action={updateVenueFeatured.bind(null, venue.id, true)}>
+                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Feature venue</button>
+                </form>
+                <form action={updateVenueFeatured.bind(null, venue.id, false)}>
+                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Unfeature venue</button>
+                </form>
+              </div>
+            </div>
             <div>
               <h3 className="font-semibold">Verification actions</h3>
               <div className="mt-3 flex flex-wrap gap-2">

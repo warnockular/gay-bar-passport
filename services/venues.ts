@@ -24,7 +24,13 @@ const createdAt = new Date(0).toISOString();
 const venueDataFoundationDefaults = {
   claimed_at: null,
   claimed_by: null,
+  completeness_score: 0,
+  featured: false,
+  featured_at: null,
   identity_classification: "lgbtq_venue" as const,
+  missing_data: [] as string[],
+  opening_hours: null,
+  readiness_status: "incomplete" as const,
   reviewed_at: null,
   reviewed_by: null,
   source: null,

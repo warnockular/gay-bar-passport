@@ -71,10 +71,14 @@ export default async function AdminVenueReviewPage({ searchParams }: AdminVenueR
                     <Badge>{venue.submission_status}</Badge>
                     <Badge>{venue.identity_classification}</Badge>
                     <Badge>{venue.review_status}</Badge>
+                    <Badge>{venue.readiness_status}</Badge>
+                    <Badge>{venue.completeness_score}/100 complete</Badge>
+                    {venue.featured ? <Badge>featured</Badge> : null}
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Source: {venue.source ? `${venue.source}${venue.source_id ? ` · ${venue.source_id}` : ""}` : "manual"} · Claim: {venue.claimed_by ? "claimed" : "unclaimed"}
                   </p>
+                  {venue.missing_data.length ? <p className="mt-2 text-xs text-muted-foreground">Missing: {venue.missing_data.join(", ")}</p> : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {(["community_verified", "owner_verified", "admin_verified", "unverified"] as const).map((status) => (

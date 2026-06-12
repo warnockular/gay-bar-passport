@@ -13,6 +13,7 @@ type VenueIdentityClassification = Tables<"venues">["identity_classification"];
 type VenueSubmissionStatus = Tables<"venues">["submission_status"];
 type ModerationStatus = Tables<"journal_entries">["moderation_status"];
 type ImportApprovalStatus = Tables<"venue_import_staging">["approval_status"];
+type VenueBulkOperationType = Tables<"venue_bulk_operation_drafts">["operation_type"];
 
 const verificationScores: Record<VenueVerificationStatus, number> = {
   admin_verified: 100,
@@ -97,13 +98,16 @@ export async function updateVenueMetadata(venueId: string, formData: FormData) {
       address: String(formData.get("address") ?? ""),
       category,
       description: String(formData.get("description") ?? ""),
+      opening_hours: String(formData.get("openingHours") ?? ""),
       name: String(formData.get("name") ?? ""),
       neighborhood: String(formData.get("neighborhood") ?? ""),
       website_url: String(formData.get("websiteUrl") ?? "")
     } as never)
     .eq("id", venueId);
   await logAudit(admin.id, "venue_metadata_updated", "venue", venueId);
+  await logAudit(admin.id, "venue_quality_recalculated", "venue", venueId);
   revalidatePath("/admin/venues");
+  revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
 }
 
@@ -122,6 +126,7 @@ export async function updateVenueVerification(venueId: string, status: VenueVeri
     } as never)
     .eq("id", venueId);
   await logAudit(admin.id, "venue_verification_changed", "venue", venueId, { status, score: String(verificationScores[status]) });
+  await logAudit(admin.id, "venue_readiness_recalculated", "venue", venueId, { reason: "verification_changed" });
   revalidatePath("/admin");
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
@@ -135,9 +140,32 @@ export async function updateVenueIdentityClassification(venueId: string, classif
   const supabase = await createSupabaseServerClient();
   await supabase.from("venues").update({ identity_classification: classification } as never).eq("id", venueId);
   await logAudit(admin.id, "venue_identity_changed", "venue", venueId, { classification });
+  await logAudit(admin.id, "venue_readiness_recalculated", "venue", venueId, { reason: "identity_changed" });
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
+}
+
+export async function updateVenueFeatured(venueId: string, featured: boolean) {
+  const admin = await requireAdminProfile();
+  const supabase = await createSupabaseServerClient();
+  await supabase.from("venues").update({ featured, featured_at: featured ? new Date().toISOString() : null } as never).eq("id", venueId);
+  await logAudit(admin.id, featured ? "venue_featured" : "venue_unfeatured", "venue", venueId);
+  await logAudit(admin.id, "venue_readiness_recalculated", "venue", venueId, { reason: "featured_changed" });
+  revalidatePath("/admin");
+  revalidatePath("/admin/venues");
+  revalidatePath("/admin/venues/review");
+  revalidatePath(`/admin/venues/${venueId}`);
+}
+
+export async function createBulkOperationDraft(operationType: VenueBulkOperationType) {
+  const admin = await requireAdminProfile();
+  if (!["bulk_verification", "bulk_classification", "bulk_feature"].includes(operationType)) return;
+
+  const supabase = await createSupabaseServerClient();
+  await supabase.from("venue_bulk_operation_drafts").insert({ created_by: admin.id, operation_type: operationType } as never);
+  await logAudit(admin.id, "venue_bulk_operation_draft_created", "venue_bulk_operation", null, { operationType });
+  revalidatePath("/admin/venues");
 }
 
 export async function updateVenueSource(venueId: string, formData: FormData) {

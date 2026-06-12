@@ -451,6 +451,44 @@ export type Database = {
           }
         ];
       };
+      venue_bulk_operation_drafts: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          criteria: Json;
+          id: string;
+          operation_type: Database["public"]["Enums"]["venue_bulk_operation_type"];
+          status: "draft";
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          criteria?: Json;
+          id?: string;
+          operation_type: Database["public"]["Enums"]["venue_bulk_operation_type"];
+          status?: "draft";
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          criteria?: Json;
+          id?: string;
+          operation_type?: Database["public"]["Enums"]["venue_bulk_operation_type"];
+          status?: "draft";
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_bulk_operation_drafts_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       moderation_flags: {
         Row: {
           created_at: string;
@@ -666,6 +704,7 @@ export type Database = {
           claimed_by: string | null;
           city_slug: string;
           city: string;
+          completeness_score: number;
           country_slug: string;
           country: string;
           created_at: string;
@@ -677,9 +716,14 @@ export type Database = {
           is_published: boolean;
           latitude: number | null;
           longitude: number | null;
+          featured: boolean;
+          featured_at: string | null;
+          missing_data: string[];
           name: string;
           neighborhood: string | null;
+          opening_hours: string | null;
           region: string | null;
+          readiness_status: Database["public"]["Enums"]["venue_readiness_status"];
           review_status: "active" | "hidden" | "pending_review";
           reviewed_at: string | null;
           reviewed_by: string | null;
@@ -699,6 +743,7 @@ export type Database = {
           claimed_by?: string | null;
           city_slug: string;
           city: string;
+          completeness_score?: number;
           country_slug: string;
           country: string;
           created_at?: string;
@@ -710,9 +755,14 @@ export type Database = {
           is_published?: boolean;
           latitude?: number | null;
           longitude?: number | null;
+          featured?: boolean;
+          featured_at?: string | null;
+          missing_data?: string[];
           name: string;
           neighborhood?: string | null;
+          opening_hours?: string | null;
           region?: string | null;
+          readiness_status?: Database["public"]["Enums"]["venue_readiness_status"];
           review_status?: "active" | "hidden" | "pending_review";
           reviewed_at?: string | null;
           reviewed_by?: string | null;
@@ -732,6 +782,7 @@ export type Database = {
           claimed_by?: string | null;
           city_slug?: string;
           city?: string;
+          completeness_score?: number;
           country_slug?: string;
           country?: string;
           created_at?: string;
@@ -743,9 +794,14 @@ export type Database = {
           is_published?: boolean;
           latitude?: number | null;
           longitude?: number | null;
+          featured?: boolean;
+          featured_at?: string | null;
+          missing_data?: string[];
           name?: string;
           neighborhood?: string | null;
+          opening_hours?: string | null;
           region?: string | null;
+          readiness_status?: Database["public"]["Enums"]["venue_readiness_status"];
           review_status?: "active" | "hidden" | "pending_review";
           reviewed_at?: string | null;
           reviewed_by?: string | null;
@@ -1016,7 +1072,9 @@ export type Database = {
       import_batch_status: "pending" | "processing" | "completed" | "failed";
       import_duplicate_status: "unique" | "possible_duplicate" | "confirmed_duplicate";
       venue_identity_classification: "lgbtq_venue" | "lgbtq_friendly" | "historic_site" | "community_recommended";
+      venue_bulk_operation_type: "bulk_verification" | "bulk_classification" | "bulk_feature";
       venue_category: "bar" | "club" | "lounge" | "cafe" | "performance" | "community";
+      venue_readiness_status: "incomplete" | "review_ready" | "publish_ready" | "featured_ready";
       venue_submission_status: "imported" | "community_submitted" | "owner_submitted" | "admin_created";
       venue_verification_status: "unverified" | "community_verified" | "owner_verified" | "admin_verified";
       visit_mood: "iconic" | "intimate" | "social" | "romantic" | "high_energy" | "reflective";

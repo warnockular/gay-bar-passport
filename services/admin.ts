@@ -18,6 +18,12 @@ export type AdminSummary = {
   publicProfiles: number;
   recentActivity: Array<{ date: string; label: string }>;
   totalUsers: number;
+  venueQuality: {
+    averageCompleteness: number;
+    featuredReady: number;
+    incomplete: number;
+    publishReady: number;
+  };
   venueModeration: {
     imported: number;
     pendingReview: number;
@@ -31,6 +37,7 @@ export type AdminSummary = {
 export type AdminProfile = Tables<"profiles">;
 export type AdminVenue = Tables<"venues">;
 export type AdminImportBatch = Tables<"import_batches">;
+export type AdminBulkOperationDraft = Tables<"venue_bulk_operation_drafts">;
 export type AdminStagedVenue = Tables<"venue_import_staging"> & {
   duplicateVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country"> | null;
 };
@@ -40,7 +47,7 @@ export type AdminComment = Tables<"journal_comments"> & {
   profiles?: Pick<Tables<"profiles">, "display_name"> | null;
 };
 
-async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
+async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_bulk_operation_drafts" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
   const supabase = await createSupabaseServerClient();
   let query = supabase.from(table).select("*", { count: "exact", head: true });
   if (filter) query = filter(query);
@@ -58,6 +65,7 @@ type TablesMap = {
   passport_stamps: Tables<"passport_stamps">;
   profiles: Tables<"profiles">;
   venues: Tables<"venues">;
+  venue_bulk_operation_drafts: Tables<"venue_bulk_operation_drafts">;
   venue_import_staging: Tables<"venue_import_staging">;
   visits: Tables<"visits">;
 };
@@ -84,6 +92,10 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     stagedVenues,
     duplicateCandidates,
     approvedImports,
+    publishReadyVenues,
+    incompleteVenues,
+    featuredReadyVenues,
+    completenessScores,
     users,
     journals
   ] = await Promise.all([
@@ -106,6 +118,10 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     count("venue_import_staging"),
     count("venue_import_staging", (query) => query.eq("duplicate_review_status", "possible_duplicate")),
     count("venue_import_staging", (query) => query.eq("approval_status", "approved")),
+    count("venues", (query) => query.eq("readiness_status", "publish_ready")),
+    count("venues", (query) => query.eq("readiness_status", "incomplete")),
+    count("venues", (query) => query.eq("readiness_status", "featured_ready")),
+    supabase.from("venues").select("completeness_score").limit(1000),
     supabase.from("profiles").select("display_name, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("journal_entries").select("title, created_at").order("created_at", { ascending: false }).limit(5)
   ]);
@@ -114,6 +130,8 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     ...((users.data ?? []) as Pick<Tables<"profiles">, "created_at" | "display_name">[]).map((user) => ({ date: user.created_at, label: `New user: ${user.display_name ?? "Passport traveler"}` })),
     ...((journals.data ?? []) as Pick<Tables<"journal_entries">, "created_at" | "title">[]).map((journal) => ({ date: journal.created_at, label: `Journal entry: ${journal.title}` }))
   ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+  const scoreRows = (completenessScores.data ?? []) as Array<Pick<Tables<"venues">, "completeness_score">>;
+  const averageCompleteness = scoreRows.length ? Math.round(scoreRows.reduce((total, venue) => total + venue.completeness_score, 0) / scoreRows.length) : 0;
 
   return {
     comments,
@@ -132,6 +150,12 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     publicProfiles,
     recentActivity,
     totalUsers,
+    venueQuality: {
+      averageCompleteness,
+      featuredReady: featuredReadyVenues,
+      incomplete: incompleteVenues,
+      publishReady: publishReadyVenues
+    },
     venueModeration: {
       imported: venueImported,
       pendingReview: venuePendingReview,
@@ -224,6 +248,12 @@ export async function getImportBatchStats(batchId: string) {
   ]);
 
   return { approved, duplicateCandidates, merged, pending, rejected, total };
+}
+
+export async function listBulkOperationDrafts() {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("venue_bulk_operation_drafts").select("*").order("created_at", { ascending: false }).limit(20);
+  return (data ?? []) as AdminBulkOperationDraft[];
 }
 
 export async function listAdminJournals() {

@@ -42,6 +42,10 @@ export default async function AdminDashboardPage() {
         <SummaryCard label="Staged venues" value={summary.importReadiness.stagedVenues} />
         <SummaryCard label="Duplicate candidates" value={summary.importReadiness.duplicateCandidates} />
         <SummaryCard label="Approved imports" value={summary.importReadiness.approvedImports} />
+        <SummaryCard label="Publish ready venues" value={summary.venueQuality.publishReady} />
+        <SummaryCard label="Incomplete venues" value={summary.venueQuality.incomplete} />
+        <SummaryCard label="Featured ready venues" value={summary.venueQuality.featuredReady} />
+        <SummaryCard label="Avg completeness" value={summary.venueQuality.averageCompleteness} />
       </div>
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <Card className="bg-card/90 p-6">
