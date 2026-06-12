@@ -1,138 +1,240 @@
+import { CheckCircle2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { updateVenueFeatured, updateVenueIdentityClassification, updateVenueMetadata, updateVenueSource, updateVenueStatus, updateVenueVerification } from "@/features/admin/actions";
+import {
+  updateVenueFeatured,
+  updateVenueIdentityClassification,
+  updateVenueMetadata,
+  updateVenueSource,
+  updateVenueStatus,
+  updateVenueVerification
+} from "@/features/admin/actions";
 import { getAdminVenue } from "@/services/admin";
+import type { Tables } from "@/types/database";
 
 type AdminVenuePageProps = {
   params: Promise<{ venueId: string }>;
+  searchParams?: Promise<{ updated?: string }>;
 };
 
-export default async function AdminVenuePage({ params }: AdminVenuePageProps) {
+type Venue = Tables<"venues">;
+
+const categoryOptions: Venue["category"][] = ["bar", "club", "lounge", "cafe", "performance", "community"];
+const reviewStatusOptions: Venue["review_status"][] = ["active", "hidden", "pending_review"];
+const verificationOptions: Array<{ label: string; score: number; value: Venue["verification_status"] }> = [
+  { label: "Unverified", score: 0, value: "unverified" },
+  { label: "Community Verified", score: 80, value: "community_verified" },
+  { label: "Owner Verified", score: 90, value: "owner_verified" },
+  { label: "Admin Verified", score: 100, value: "admin_verified" }
+];
+const identityOptions: Array<{ label: string; value: Venue["identity_classification"] }> = [
+  { label: "LGBTQ Venue", value: "lgbtq_venue" },
+  { label: "LGBTQ Friendly", value: "lgbtq_friendly" },
+  { label: "Historic Site", value: "historic_site" },
+  { label: "Community Recommended", value: "community_recommended" }
+];
+const submissionStatusOptions: Venue["submission_status"][] = ["imported", "community_submitted", "owner_submitted", "admin_created"];
+
+function label(value: string) {
+  return value
+    .split("_")
+    .map((part) => (part.toLowerCase() === "lgbtq" ? "LGBTQ" : part.slice(0, 1).toUpperCase() + part.slice(1)))
+    .join(" ");
+}
+
+function StatusMessage({ updated, section }: { section: string; updated?: string }) {
+  if (updated !== section) return null;
+  return (
+    <p className="mt-4 flex items-center gap-2 rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage" role="status">
+      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+      Changes saved.
+    </p>
+  );
+}
+
+function Field({ children, label: fieldLabel }: { children: React.ReactNode; label: string }) {
+  return (
+    <label className="space-y-2 text-sm font-semibold">
+      <span>{fieldLabel}</span>
+      {children}
+    </label>
+  );
+}
+
+function InputClass() {
+  return "h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm";
+}
+
+export default async function AdminVenuePage({ params, searchParams }: AdminVenuePageProps) {
   const { venueId } = await params;
+  const { updated } = (await searchParams) ?? {};
   const venue = await getAdminVenue(venueId);
   if (!venue) notFound();
 
+  const feedbackPath = `/admin/venues/${venue.id}`;
+  const isFeaturedReady = venue.readiness_status === "featured_ready";
+
   return (
-    <div>
-      <Badge>Venue</Badge>
-      <h1 className="mt-5 font-serif text-5xl font-semibold">{venue.name}</h1>
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <Card className="bg-card/90 p-6">
-          <h2 className="font-serif text-3xl font-semibold">Metadata</h2>
-          <form action={updateVenueMetadata.bind(null, venue.id)} className="mt-5 grid gap-4">
-            <input name="name" defaultValue={venue.name} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" />
-            <select name="category" defaultValue={venue.category} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm">
-              {["bar", "club", "lounge", "cafe", "performance", "community"].map((category) => <option key={category} value={category}>{category}</option>)}
-            </select>
-            <input name="neighborhood" defaultValue={venue.neighborhood ?? ""} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Neighborhood" />
-            <input name="address" defaultValue={venue.address ?? ""} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Address" />
-            <input name="websiteUrl" defaultValue={venue.website_url ?? ""} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Website" />
-            <input name="openingHours" defaultValue={venue.opening_hours ?? ""} className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Hours" />
-            <textarea name="description" defaultValue={venue.description ?? ""} className="min-h-32 rounded-md border border-input bg-background/80 px-3 py-2 text-sm" />
-            <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Save metadata</button>
-          </form>
-        </Card>
-        <Card className="bg-card/90 p-6">
-          <h2 className="font-serif text-3xl font-semibold">Review status</h2>
-          <p className="mt-3 text-sm text-muted-foreground">Current: {venue.review_status}</p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            {(["active", "hidden", "pending_review"] as const).map((status) => (
-              <form key={status} action={updateVenueStatus.bind(null, venue.id, status)}>
-                <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">{status}</button>
+    <div className="space-y-6">
+      <section>
+        <Badge>Venue Management</Badge>
+        <h1 className="mt-5 font-serif text-4xl font-semibold leading-tight md:text-5xl">{venue.name}</h1>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Badge>{label(venue.category)}</Badge>
+          <Badge>{label(venue.review_status)}</Badge>
+          <Badge>{label(venue.readiness_status)}</Badge>
+          <Badge>{venue.completeness_score}/100 Complete</Badge>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">{venue.city}, {venue.country}</p>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_24rem]">
+        <div className="space-y-6">
+          <Card className="bg-card/90 p-6">
+            <h2 className="font-serif text-3xl font-semibold">Core Venue Details</h2>
+            <form action={updateVenueMetadata.bind(null, venue.id)} className="mt-5 grid gap-4 md:grid-cols-2">
+              <input type="hidden" name="feedbackPath" value={feedbackPath} />
+              <Field label="Name">
+                <input name="name" defaultValue={venue.name} className={InputClass()} />
+              </Field>
+              <Field label="Type">
+                <select name="category" defaultValue={venue.category} className={InputClass()}>
+                  {categoryOptions.map((category) => <option key={category} value={category}>{label(category)}</option>)}
+                </select>
+              </Field>
+              <Field label="City">
+                <input name="city" defaultValue={venue.city} className={InputClass()} />
+              </Field>
+              <Field label="Country">
+                <input name="country" defaultValue={venue.country} className={InputClass()} />
+              </Field>
+              <Field label="Neighborhood">
+                <input name="neighborhood" defaultValue={venue.neighborhood ?? ""} className={InputClass()} />
+              </Field>
+              <Field label="Address">
+                <input name="address" defaultValue={venue.address ?? ""} className={InputClass()} />
+              </Field>
+              <Field label="Website">
+                <input name="websiteUrl" defaultValue={venue.website_url ?? ""} className={InputClass()} />
+              </Field>
+              <Field label="Opening hours">
+                <input name="openingHours" defaultValue={venue.opening_hours ?? ""} className={InputClass()} />
+              </Field>
+              <label className="space-y-2 text-sm font-semibold md:col-span-2">
+                <span>Description</span>
+                <textarea name="description" defaultValue={venue.description ?? ""} className="min-h-36 w-full rounded-md border border-input bg-background/80 px-3 py-2 text-sm" />
+              </label>
+              <div className="md:col-span-2">
+                <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Save metadata</button>
+                <StatusMessage updated={updated} section="metadata" />
+              </div>
+            </form>
+          </Card>
+
+          <Card className="bg-card/90 p-6">
+            <h2 className="font-serif text-3xl font-semibold">Verification</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Current: {label(venue.verification_status)} · {venue.verification_score}/100</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {verificationOptions.map((option) => (
+                <form key={option.value} action={updateVenueVerification.bind(null, venue.id, option.value, feedbackPath)}>
+                  <button className="w-full rounded-md border border-border bg-background/70 px-3 py-3 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                    {option.label}
+                    <span className="block text-xs font-normal text-muted-foreground">Sets score to {option.score}</span>
+                  </button>
+                </form>
+              ))}
+            </div>
+            <StatusMessage updated={updated} section="verification" />
+          </Card>
+
+          <Card className="bg-card/90 p-6">
+            <h2 className="font-serif text-3xl font-semibold">Identity Classification</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Current: {label(venue.identity_classification)}</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {identityOptions.map((option) => (
+                <form key={option.value} action={updateVenueIdentityClassification.bind(null, venue.id, option.value, feedbackPath)}>
+                  <button className="w-full rounded-md border border-border bg-background/70 px-3 py-3 text-left text-sm font-semibold hover:bg-muted" type="submit">{option.label}</button>
+                </form>
+              ))}
+            </div>
+            <StatusMessage updated={updated} section="identity" />
+          </Card>
+
+          <Card className="bg-card/90 p-6">
+            <h2 className="font-serif text-3xl font-semibold">Featured / Publishing Controls</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Current: {venue.featured ? `Featured ${venue.featured_at ?? ""}` : "Not featured"} · Readiness: {label(venue.readiness_status)}
+            </p>
+            {!isFeaturedReady ? (
+              <p className="mt-4 rounded-md border border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                To become featured-ready, improve completeness, add a photo, and set Owner Verified or Admin Verified.
+              </p>
+            ) : null}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <form action={updateVenueFeatured.bind(null, venue.id, true, feedbackPath)}>
+                <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Feature venue</button>
               </form>
-            ))}
-          </div>
-        </Card>
-        <Card className="bg-card/90 p-6 lg:col-start-2">
-          <h2 className="font-serif text-3xl font-semibold">Data foundation</h2>
-          <dl className="mt-5 space-y-3 text-sm">
-            <div>
-              <dt className="font-semibold">Completeness</dt>
-              <dd className="text-muted-foreground">{venue.completeness_score}/100 · {venue.readiness_status}</dd>
+              <form action={updateVenueFeatured.bind(null, venue.id, false, feedbackPath)}>
+                <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Unfeature venue</button>
+              </form>
             </div>
-            <div>
-              <dt className="font-semibold">Missing data</dt>
-              <dd className="text-muted-foreground">{venue.missing_data.length ? venue.missing_data.join(", ") : "No tracked gaps"}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Featured</dt>
-              <dd className="text-muted-foreground">{venue.featured ? `Featured ${venue.featured_at ?? ""}` : "Not featured"}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Verification</dt>
-              <dd className="text-muted-foreground">{venue.verification_status} · score {venue.verification_score}/100</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Identity</dt>
-              <dd className="text-muted-foreground">{venue.identity_classification}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Submission</dt>
-              <dd className="text-muted-foreground">{venue.submission_status}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Source</dt>
-              <dd className="text-muted-foreground">{venue.source ? `${venue.source}${venue.source_id ? ` · ${venue.source_id}` : ""}` : "manual"}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Claim</dt>
-              <dd className="text-muted-foreground">{venue.claimed_by ? `Claimed ${venue.claimed_at ?? ""}` : "Unclaimed"}</dd>
-            </div>
-            <div>
-              <dt className="font-semibold">Review</dt>
-              <dd className="text-muted-foreground">{venue.reviewed_by ? `Reviewed ${venue.reviewed_at ?? ""}` : "Not reviewed in Phase 11B"}</dd>
-            </div>
-          </dl>
-          <div className="mt-6 space-y-5">
-            <div>
-              <h3 className="font-semibold">Feature controls</h3>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <form action={updateVenueFeatured.bind(null, venue.id, true)}>
-                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Feature venue</button>
+            <StatusMessage updated={updated} section="featured" />
+          </Card>
+        </div>
+
+        <aside className="space-y-6">
+          <Card className="bg-card/90 p-6">
+            <h2 className="font-serif text-3xl font-semibold">Quality & Missing Data</h2>
+            <p className="mt-4 text-4xl font-semibold">{venue.completeness_score}/100</p>
+            <p className="mt-2 text-sm text-muted-foreground">{label(venue.readiness_status)}</p>
+            {venue.missing_data.length ? (
+              <div className="mt-5">
+                <p className="text-sm font-semibold">Missing or weak data</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {venue.missing_data.map((item) => <Badge key={item}>{label(item)}</Badge>)}
+                </div>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">Add missing fields, coordinates, hours, photos, identity, and verification to improve the score.</p>
+              </div>
+            ) : (
+              <p className="mt-5 text-sm text-muted-foreground">No tracked quality gaps.</p>
+            )}
+          </Card>
+
+          <Card className="bg-card/90 p-6">
+            <h2 className="font-serif text-3xl font-semibold">Review Status</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Current: {label(venue.review_status)}</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {reviewStatusOptions.map((status) => (
+                <form key={status} action={updateVenueStatus.bind(null, venue.id, status, feedbackPath)}>
+                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">{label(status)}</button>
                 </form>
-                <form action={updateVenueFeatured.bind(null, venue.id, false)}>
-                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Unfeature venue</button>
-                </form>
-              </div>
+              ))}
             </div>
-            <div>
-              <h3 className="font-semibold">Verification actions</h3>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(["community_verified", "owner_verified", "admin_verified", "unverified"] as const).map((status) => (
-                  <form key={status} action={updateVenueVerification.bind(null, venue.id, status)}>
-                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">
-                      {status}
-                    </button>
-                  </form>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="font-semibold">Identity classification</h3>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(["lgbtq_venue", "lgbtq_friendly", "historic_site", "community_recommended"] as const).map((classification) => (
-                  <form key={classification} action={updateVenueIdentityClassification.bind(null, venue.id, classification)}>
-                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">
-                      {classification}
-                    </button>
-                  </form>
-                ))}
-              </div>
-            </div>
-            <form action={updateVenueSource.bind(null, venue.id)} className="space-y-3">
-              <h3 className="font-semibold">Source management</h3>
-              <input name="source" defaultValue={venue.source ?? ""} className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Source, e.g. manual_import" />
-              <input name="sourceId" defaultValue={venue.source_id ?? ""} className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Source ID" />
-              <select name="submissionStatus" defaultValue={venue.submission_status} className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm">
-                {["imported", "community_submitted", "owner_submitted", "admin_created"].map((status) => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
+            <StatusMessage updated={updated} section="review-status" />
+          </Card>
+
+          <Card className="bg-card/90 p-6">
+            <h2 className="font-serif text-3xl font-semibold">Source, Submission & Claim</h2>
+            <dl className="mt-5 space-y-3 text-sm">
+              <div><dt className="font-semibold">Source</dt><dd className="text-muted-foreground">{venue.source ?? "Manual"}</dd></div>
+              <div><dt className="font-semibold">Source ID</dt><dd className="text-muted-foreground">{venue.source_id ?? "None"}</dd></div>
+              <div><dt className="font-semibold">Submission</dt><dd className="text-muted-foreground">{label(venue.submission_status)}</dd></div>
+              <div><dt className="font-semibold">Claim</dt><dd className="text-muted-foreground">{venue.claimed_by ? `Claimed ${venue.claimed_at ?? ""}` : "Unclaimed"}</dd></div>
+              <div><dt className="font-semibold">Reviewed</dt><dd className="text-muted-foreground">{venue.reviewed_by ? `Reviewed ${venue.reviewed_at ?? ""}` : "Not reviewed"}</dd></div>
+            </dl>
+            <form action={updateVenueSource.bind(null, venue.id)} className="mt-5 space-y-3">
+              <input type="hidden" name="feedbackPath" value={feedbackPath} />
+              <input name="source" defaultValue={venue.source ?? ""} className={InputClass()} placeholder="Source" />
+              <input name="sourceId" defaultValue={venue.source_id ?? ""} className={InputClass()} placeholder="Source ID" />
+              <select name="submissionStatus" defaultValue={venue.submission_status} className={InputClass()}>
+                {submissionStatusOptions.map((status) => <option key={status} value={status}>{label(status)}</option>)}
               </select>
               <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Save source state</button>
+              <StatusMessage updated={updated} section="source" />
             </form>
-          </div>
-        </Card>
+          </Card>
+        </aside>
       </div>
     </div>
   );

@@ -82,7 +82,7 @@ export default async function AdminVenueReviewPage({ searchParams }: AdminVenueR
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {(["community_verified", "owner_verified", "admin_verified", "unverified"] as const).map((status) => (
-                    <form key={status} action={updateVenueVerification.bind(null, venue.id, status)}>
+                    <form key={status} action={updateVenueVerification.bind(null, venue.id, status, undefined)}>
                       <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">
                         {status}
                       </button>

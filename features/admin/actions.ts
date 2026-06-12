@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdminProfile } from "@/lib/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database, Tables } from "@/types/database";
@@ -25,6 +26,12 @@ const verificationScores: Record<VenueVerificationStatus, number> = {
 async function logAudit(actorId: string, action: string, targetType: string, targetId: string | null, metadata: Record<string, string | boolean | null> = {}) {
   const supabase = await createSupabaseServerClient();
   await supabase.from("audit_logs").insert({ action, actor_id: actorId, metadata, target_id: targetId, target_type: targetType } as never);
+}
+
+function redirectWithFeedback(path?: string, key?: string) {
+  if (path && path.startsWith("/")) {
+    redirect(`${path}?updated=${key ?? "saved"}`);
+  }
 }
 
 async function refreshImportBatchCounts(batchId: string) {
@@ -77,7 +84,7 @@ export async function softDeleteUser(userId: string) {
   revalidatePath(`/admin/users/${userId}`);
 }
 
-export async function updateVenueStatus(venueId: string, status: VenueStatus) {
+export async function updateVenueStatus(venueId: string, status: VenueStatus, feedbackPath?: string) {
   const admin = await requireAdminProfile();
   if (!["active", "hidden", "pending_review"].includes(status)) return;
 
@@ -86,6 +93,7 @@ export async function updateVenueStatus(venueId: string, status: VenueStatus) {
   await logAudit(admin.id, "venue_status_changed", "venue", venueId, { status });
   revalidatePath("/admin/venues");
   revalidatePath(`/admin/venues/${venueId}`);
+  redirectWithFeedback(feedbackPath, "review-status");
 }
 
 export async function updateVenueMetadata(venueId: string, formData: FormData) {
@@ -97,6 +105,8 @@ export async function updateVenueMetadata(venueId: string, formData: FormData) {
     .update({
       address: String(formData.get("address") ?? ""),
       category,
+      city: String(formData.get("city") ?? ""),
+      country: String(formData.get("country") ?? ""),
       description: String(formData.get("description") ?? ""),
       opening_hours: String(formData.get("openingHours") ?? ""),
       name: String(formData.get("name") ?? ""),
@@ -109,9 +119,10 @@ export async function updateVenueMetadata(venueId: string, formData: FormData) {
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
+  redirectWithFeedback(String(formData.get("feedbackPath") ?? ""), "metadata");
 }
 
-export async function updateVenueVerification(venueId: string, status: VenueVerificationStatus) {
+export async function updateVenueVerification(venueId: string, status: VenueVerificationStatus, feedbackPath?: string) {
   const admin = await requireAdminProfile();
   if (!["unverified", "community_verified", "owner_verified", "admin_verified"].includes(status)) return;
 
@@ -131,9 +142,10 @@ export async function updateVenueVerification(venueId: string, status: VenueVeri
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
+  redirectWithFeedback(feedbackPath, "verification");
 }
 
-export async function updateVenueIdentityClassification(venueId: string, classification: VenueIdentityClassification) {
+export async function updateVenueIdentityClassification(venueId: string, classification: VenueIdentityClassification, feedbackPath?: string) {
   const admin = await requireAdminProfile();
   if (!["lgbtq_venue", "lgbtq_friendly", "historic_site", "community_recommended"].includes(classification)) return;
 
@@ -144,9 +156,10 @@ export async function updateVenueIdentityClassification(venueId: string, classif
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
+  redirectWithFeedback(feedbackPath, "identity");
 }
 
-export async function updateVenueFeatured(venueId: string, featured: boolean) {
+export async function updateVenueFeatured(venueId: string, featured: boolean, feedbackPath?: string) {
   const admin = await requireAdminProfile();
   const supabase = await createSupabaseServerClient();
   await supabase.from("venues").update({ featured, featured_at: featured ? new Date().toISOString() : null } as never).eq("id", venueId);
@@ -156,6 +169,7 @@ export async function updateVenueFeatured(venueId: string, featured: boolean) {
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
+  redirectWithFeedback(feedbackPath, "featured");
 }
 
 export async function createBulkOperationDraft(operationType: VenueBulkOperationType) {
@@ -189,6 +203,7 @@ export async function updateVenueSource(venueId: string, formData: FormData) {
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
+  redirectWithFeedback(String(formData.get("feedbackPath") ?? ""), "source");
 }
 
 export async function createImportBatch(formData: FormData) {

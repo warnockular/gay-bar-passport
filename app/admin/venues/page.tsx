@@ -50,7 +50,7 @@ export default async function AdminVenuesPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {(["active", "hidden", "pending_review"] as const).map((status) => (
-                  <form key={status} action={updateVenueStatus.bind(null, venue.id, status)}>
+                  <form key={status} action={updateVenueStatus.bind(null, venue.id, status, undefined)}>
                     <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">{status}</button>
                   </form>
                 ))}
