@@ -46,6 +46,15 @@ export type AdminComment = Tables<"journal_comments"> & {
   journal_entries?: Pick<Tables<"journal_entries">, "title"> | null;
   profiles?: Pick<Tables<"profiles">, "display_name"> | null;
 };
+export type AuditLogFilters = {
+  action?: string;
+  order?: "newest" | "oldest";
+  targetType?: string;
+};
+export type AdminAuditLog = Tables<"audit_logs"> & {
+  actor?: Pick<Tables<"profiles">, "display_name" | "id"> | null;
+  venue?: Pick<Tables<"venues">, "city" | "country" | "id" | "name"> | null;
+};
 
 async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_bulk_operation_drafts" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
   const supabase = await createSupabaseServerClient();
@@ -274,10 +283,31 @@ export async function listModerationFlags() {
   return (data ?? []) as Tables<"moderation_flags">[];
 }
 
-export async function listAuditLogs() {
+export async function listAuditLogs(filters: AuditLogFilters = {}) {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(100);
-  return (data ?? []) as Tables<"audit_logs">[];
+  let query = supabase.from("audit_logs").select("*");
+
+  if (filters.action) query = query.eq("action", filters.action);
+  if (filters.targetType) query = query.eq("target_type", filters.targetType);
+
+  const { data } = await query.order("created_at", { ascending: filters.order === "oldest" }).limit(100);
+  const logs = (data ?? []) as Tables<"audit_logs">[];
+  const actorIds = Array.from(new Set(logs.map((log) => log.actor_id).filter(Boolean))) as string[];
+  const venueIds = Array.from(new Set(logs.filter((log) => log.target_type === "venue").map((log) => log.target_id).filter(Boolean))) as string[];
+
+  const [profilesResult, venuesResult] = await Promise.all([
+    actorIds.length ? supabase.from("profiles").select("id, display_name").in("id", actorIds) : Promise.resolve({ data: [] }),
+    venueIds.length ? supabase.from("venues").select("id, name, city, country").in("id", venueIds) : Promise.resolve({ data: [] })
+  ]);
+
+  const profilesById = new Map(((profilesResult.data ?? []) as Pick<Tables<"profiles">, "display_name" | "id">[]).map((profile) => [profile.id, profile]));
+  const venuesById = new Map(((venuesResult.data ?? []) as Pick<Tables<"venues">, "city" | "country" | "id" | "name">[]).map((venue) => [venue.id, venue]));
+
+  return logs.map((log) => ({
+    ...log,
+    actor: log.actor_id ? profilesById.get(log.actor_id) ?? null : null,
+    venue: log.target_type === "venue" && log.target_id ? venuesById.get(log.target_id) ?? null : null
+  })) satisfies AdminAuditLog[];
 }
 
 export async function listAdminNotifications() {
