@@ -214,7 +214,7 @@ export async function getAdminUser(userId: string) {
 
 export async function listAdminVenues() {
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.from("venues").select("*").order("name").limit(100);
+  const { data } = await supabase.from("venues").select("*").order("created_at", { ascending: false }).limit(500);
   return (data ?? []) as AdminVenue[];
 }
 
@@ -233,7 +233,7 @@ export async function listAdminVenueReviewQueue(filter: VenueQueueFilter = "unve
   }
 
   if (filter === "unverified") query = query.eq("verification_status", "unverified");
-  if (filter === "community_submitted") query = query.eq("submission_status", "community_submitted");
+  if (filter === "community_submitted") query = query.eq("submission_status", "community_submitted").eq("review_status", "pending_review").eq("source", "community_submission");
   if (filter === "owner_submitted") query = query.eq("submission_status", "owner_submitted");
   if (filter === "imported_review") query = query.eq("submission_status", "imported").eq("review_status", "pending_review");
   if (filter === "claimed_review") query = query.in("id", pendingClaimVenueIds);

@@ -58,6 +58,21 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
   const slugBase = slugify(`${parsed.data.name}-${parsed.data.city}`);
   const slug = `${slugBase}-${venueId.slice(0, 8)}`;
   const supabase = await createSupabaseServerClient();
+  const { data: existingSubmission } = await supabase
+    .from("venues")
+    .select("id")
+    .eq("submitted_by", user.id)
+    .eq("submission_status", "community_submitted")
+    .eq("review_status", "pending_review")
+    .ilike("name", parsed.data.name)
+    .ilike("city", parsed.data.city)
+    .ilike("country", parsed.data.country)
+    .maybeSingle();
+
+  if (existingSubmission) {
+    return { ok: true, message: "This venue is already in the community review queue." };
+  }
+
   const { data: savedVenue, error } = await supabase.from("venues").insert({
     address: parsed.data.address,
     category: parsed.data.category,
@@ -88,10 +103,10 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     website_url: parsed.data.websiteUrl || null
   } as never).select("id, review_status, submitted_by, submission_status, verification_status, is_published").single();
 
-  if (error) return { ok: false, message: `Venue could not be submitted: ${error.message}` };
+  if (error) return { ok: false, message: `Venue insert failed: ${error.message}`, values };
   const saved = savedVenue as Pick<Tables<"venues">, "id" | "is_published" | "review_status" | "submitted_by" | "submission_status" | "verification_status"> | null;
   if (!saved || saved.review_status !== "pending_review" || saved.submission_status !== "community_submitted" || saved.verification_status !== "unverified" || saved.submitted_by !== user.id || saved.is_published) {
-    return { ok: false, message: "Venue submission did not save in the expected review state. Please try again or contact support.", values };
+    return { ok: false, message: "Venue inserted but could not be verified in the expected admin review state.", values };
   }
 
   const { error: auditError } = await supabase.from("audit_logs").insert({
@@ -102,7 +117,10 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     target_type: "venue"
   } as never);
   if (auditError) {
-    return { ok: false, message: `Venue was saved for review, but the audit event failed: ${auditError.message}` };
+    revalidatePath("/admin");
+    revalidatePath("/admin/venues");
+    revalidatePath("/admin/venues/review");
+    return { ok: true, message: `Venue submitted for review. Audit logging failed: ${auditError.message}` };
   }
 
   revalidatePath("/admin");
