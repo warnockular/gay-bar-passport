@@ -65,6 +65,8 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     city_slug: slugify(parsed.data.city),
     country: parsed.data.country,
     country_slug: slugify(parsed.data.country),
+    claimed_at: null,
+    claimed_by: null,
     description: parsed.data.description,
     id: venueId,
     identity_classification: "community_recommended",
@@ -74,6 +76,8 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     name: parsed.data.name,
     neighborhood: parsed.data.address,
     review_status: "pending_review",
+    reviewed_at: null,
+    reviewed_by: null,
     slug,
     source: "community_submission",
     source_id: venueId,
@@ -82,11 +86,11 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     verification_score: 0,
     verification_status: "unverified",
     website_url: parsed.data.websiteUrl || null
-  } as never).select("id, review_status, submission_status, verification_status, is_published").single();
+  } as never).select("id, review_status, submitted_by, submission_status, verification_status, is_published").single();
 
   if (error) return { ok: false, message: `Venue could not be submitted: ${error.message}` };
-  const saved = savedVenue as Pick<Tables<"venues">, "id" | "is_published" | "review_status" | "submission_status" | "verification_status"> | null;
-  if (!saved || saved.review_status !== "pending_review" || saved.submission_status !== "community_submitted" || saved.verification_status !== "unverified" || saved.is_published) {
+  const saved = savedVenue as Pick<Tables<"venues">, "id" | "is_published" | "review_status" | "submitted_by" | "submission_status" | "verification_status"> | null;
+  if (!saved || saved.review_status !== "pending_review" || saved.submission_status !== "community_submitted" || saved.verification_status !== "unverified" || saved.submitted_by !== user.id || saved.is_published) {
     return { ok: false, message: "Venue submission did not save in the expected review state. Please try again or contact support.", values };
   }
 
