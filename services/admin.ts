@@ -42,6 +42,20 @@ export type AdminBulkOperationDraft = Tables<"venue_bulk_operation_drafts">;
 export type AdminStagedVenue = Tables<"venue_import_staging"> & {
   duplicateVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country"> | null;
 };
+export type AdminDuplicateCandidate = AdminStagedVenue & {
+  importBatch?: Pick<Tables<"import_batches">, "id" | "source_name" | "source_type"> | null;
+};
+export type VenueMergePreview = {
+  favorites: number;
+  favoriteConflicts: number;
+  journals: number;
+  passportStamps: number;
+  sourceVenue: AdminVenue;
+  targetVenue: AdminVenue;
+  tags: number;
+  visitConflicts: number;
+  visits: number;
+};
 export type AdminVenueClaim = Tables<"venue_claims"> & {
   claimant?: Pick<Tables<"profiles">, "display_name" | "id"> | null;
   reviewer?: Pick<Tables<"profiles">, "display_name" | "id"> | null;
@@ -81,6 +95,7 @@ type TablesMap = {
   profiles: Tables<"profiles">;
   venues: Tables<"venues">;
   venue_claims: Tables<"venue_claims">;
+  venue_merge_records: Tables<"venue_merge_records">;
   venue_bulk_operation_drafts: Tables<"venue_bulk_operation_drafts">;
   venue_import_staging: Tables<"venue_import_staging">;
   visits: Tables<"visits">;
@@ -259,6 +274,59 @@ export async function listVenueClaimsForVenue(venueId: string) {
 export async function getAdminVenue(venueId: string) {
   const venues = await listAdminVenues();
   return venues.find((venue) => venue.id === venueId) ?? null;
+}
+
+export async function listDuplicateCandidates() {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("venue_import_staging")
+    .select("*, venues(id, name, city, country), import_batches(id, source_name, source_type)")
+    .in("duplicate_review_status", ["possible_duplicate", "confirmed_duplicate"])
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  return ((data ?? []) as Array<Tables<"venue_import_staging"> & {
+    import_batches?: AdminDuplicateCandidate["importBatch"];
+    venues?: AdminStagedVenue["duplicateVenue"];
+  }>).map((row) => ({
+    ...row,
+    duplicateVenue: row.venues ?? null,
+    importBatch: row.import_batches ?? null
+  }));
+}
+
+export async function getVenueMergePreview(sourceVenueId: string, targetVenueId: string): Promise<VenueMergePreview | null> {
+  if (!sourceVenueId || !targetVenueId || sourceVenueId === targetVenueId) return null;
+  const supabase = await createSupabaseServerClient();
+  const [sourceVenue, targetVenue] = await Promise.all([getAdminVenue(sourceVenueId), getAdminVenue(targetVenueId)]);
+  if (!sourceVenue || !targetVenue) return null;
+
+  const [favorites, targetFavorites, visits, targetVisits, passportStamps, journals, tags] = await Promise.all([
+    supabase.from("favorites").select("user_id").eq("venue_id", sourceVenueId).limit(1000),
+    supabase.from("favorites").select("user_id").eq("venue_id", targetVenueId).limit(1000),
+    supabase.from("visits").select("user_id, visited_on").eq("venue_id", sourceVenueId).limit(1000),
+    supabase.from("visits").select("user_id, visited_on").eq("venue_id", targetVenueId).limit(1000),
+    supabase.from("passport_stamps").select("id", { count: "exact", head: true }).eq("venue_id", sourceVenueId),
+    supabase.from("journal_entries").select("id", { count: "exact", head: true }).eq("venue_id", sourceVenueId),
+    supabase.from("venue_tags").select("tag_id").eq("venue_id", sourceVenueId).limit(200)
+  ]);
+
+  const targetFavoriteUsers = new Set(((targetFavorites.data ?? []) as Array<{ user_id: string }>).map((favorite) => favorite.user_id));
+  const favoriteConflicts = ((favorites.data ?? []) as Array<{ user_id: string }>).filter((favorite) => targetFavoriteUsers.has(favorite.user_id)).length;
+  const targetVisitKeys = new Set(((targetVisits.data ?? []) as Array<{ user_id: string; visited_on: string }>).map((visit) => `${visit.user_id}:${visit.visited_on}`));
+  const visitConflicts = ((visits.data ?? []) as Array<{ user_id: string; visited_on: string }>).filter((visit) => targetVisitKeys.has(`${visit.user_id}:${visit.visited_on}`)).length;
+
+  return {
+    favorites: favorites.data?.length ?? 0,
+    favoriteConflicts,
+    journals: journals.count ?? 0,
+    passportStamps: passportStamps.count ?? 0,
+    sourceVenue,
+    targetVenue,
+    tags: tags.data?.length ?? 0,
+    visitConflicts,
+    visits: visits.data?.length ?? 0
+  };
 }
 
 export async function listImportBatches() {

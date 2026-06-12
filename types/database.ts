@@ -651,6 +651,58 @@ export type Database = {
           }
         ];
       };
+      venue_merge_records: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          merge_reason: string | null;
+          preserved_counts: Json;
+          source_venue_id: string;
+          target_venue_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          merge_reason?: string | null;
+          preserved_counts?: Json;
+          source_venue_id: string;
+          target_venue_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          merge_reason?: string | null;
+          preserved_counts?: Json;
+          source_venue_id?: string;
+          target_venue_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_merge_records_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_merge_records_source_venue_id_fkey";
+            columns: ["source_venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_merge_records_target_venue_id_fkey";
+            columns: ["target_venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       passport_stamps: {
         Row: {
           city: string;
@@ -772,6 +824,8 @@ export type Database = {
       venues: {
         Row: {
           address: string | null;
+          archived_at: string | null;
+          archived_by: string | null;
           category: Database["public"]["Enums"]["venue_category"];
           claimed_at: string | null;
           claimed_by: string | null;
@@ -791,6 +845,8 @@ export type Database = {
           longitude: number | null;
           featured: boolean;
           featured_at: string | null;
+          merge_notes: string | null;
+          merged_into_venue_id: string | null;
           missing_data: string[];
           name: string;
           neighborhood: string | null;
@@ -811,6 +867,8 @@ export type Database = {
         };
         Insert: {
           address?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
           category?: Database["public"]["Enums"]["venue_category"];
           claimed_at?: string | null;
           claimed_by?: string | null;
@@ -830,6 +888,8 @@ export type Database = {
           longitude?: number | null;
           featured?: boolean;
           featured_at?: string | null;
+          merge_notes?: string | null;
+          merged_into_venue_id?: string | null;
           missing_data?: string[];
           name: string;
           neighborhood?: string | null;
@@ -850,6 +910,8 @@ export type Database = {
         };
         Update: {
           address?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
           category?: Database["public"]["Enums"]["venue_category"];
           claimed_at?: string | null;
           claimed_by?: string | null;
@@ -869,6 +931,8 @@ export type Database = {
           longitude?: number | null;
           featured?: boolean;
           featured_at?: string | null;
+          merge_notes?: string | null;
+          merged_into_venue_id?: string | null;
           missing_data?: string[];
           name?: string;
           neighborhood?: string | null;
@@ -889,10 +953,24 @@ export type Database = {
         };
         Relationships: [
           {
+            foreignKeyName: "venues_archived_by_fkey";
+            columns: ["archived_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "venues_claimed_by_fkey";
             columns: ["claimed_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venues_merged_into_venue_id_fkey";
+            columns: ["merged_into_venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
             referencedColumns: ["id"];
           },
           {

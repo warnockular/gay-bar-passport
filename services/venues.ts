@@ -22,11 +22,15 @@ type VenueTagJoin = {
 
 const createdAt = new Date(0).toISOString();
 const venueDataFoundationDefaults = {
+  archived_at: null,
+  archived_by: null,
   claimed_at: null,
   claimed_by: null,
   completeness_score: 0,
   featured: false,
   featured_at: null,
+  merge_notes: null,
+  merged_into_venue_id: null,
   identity_classification: "lgbtq_venue" as const,
   missing_data: [] as string[],
   opening_hours: null,
@@ -252,6 +256,7 @@ export async function listPublishedVenues(filters: VenueFilters = {}): Promise<V
     .from("venues")
     .select("*, venue_tags(tags(id, name, slug))")
     .eq("is_published", true)
+    .is("archived_at", null)
     .order("country", { ascending: true })
     .order("city", { ascending: true })
     .order("name", { ascending: true })

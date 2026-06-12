@@ -8,6 +8,7 @@ const adminRoutes = [
   { href: "/admin/venues", label: "Venues" },
   { href: "/admin/venues/review", label: "Venue Queue" },
   { href: "/admin/venue-claims", label: "Owner Claims" },
+  { href: "/admin/duplicates", label: "Duplicates" },
   { href: "/admin/imports", label: "Imports" },
   { href: "/admin/journals", label: "Journals" },
   { href: "/admin/comments", label: "Comments" },

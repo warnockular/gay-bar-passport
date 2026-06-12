@@ -328,6 +328,100 @@ export async function mergeStagedVenue(stagedVenueId: string, batchId: string, f
   revalidatePath(`/admin/imports/${batchId}`);
 }
 
+export async function mergeDuplicateVenue(formData: FormData) {
+  const admin = await requireAdminProfile();
+  const sourceVenueId = String(formData.get("sourceVenueId") ?? "").trim();
+  const targetVenueId = String(formData.get("targetVenueId") ?? "").trim();
+  const mergeReason = String(formData.get("mergeReason") ?? "").trim();
+  if (!sourceVenueId || !targetVenueId || sourceVenueId === targetVenueId) return;
+
+  const supabase = await createSupabaseServerClient();
+  const { data: sourceVenue } = await supabase.from("venues").select("id, name, archived_at").eq("id", sourceVenueId).maybeSingle();
+  const { data: targetVenue } = await supabase.from("venues").select("id, name").eq("id", targetVenueId).maybeSingle();
+  if (!sourceVenue || !targetVenue || (sourceVenue as Pick<Tables<"venues">, "archived_at">).archived_at) return;
+
+  const [sourceFavorites, targetFavorites, sourceVisits, targetVisits, sourceTags] = await Promise.all([
+    supabase.from("favorites").select("id, user_id").eq("venue_id", sourceVenueId).limit(1000),
+    supabase.from("favorites").select("user_id").eq("venue_id", targetVenueId).limit(1000),
+    supabase.from("visits").select("id, user_id, visited_on").eq("venue_id", sourceVenueId).limit(1000),
+    supabase.from("visits").select("user_id, visited_on").eq("venue_id", targetVenueId).limit(1000),
+    supabase.from("venue_tags").select("tag_id").eq("venue_id", sourceVenueId).limit(200)
+  ]);
+
+  const targetFavoriteUsers = new Set(((targetFavorites.data ?? []) as Array<{ user_id: string }>).map((favorite) => favorite.user_id));
+  const duplicateFavoriteIds = ((sourceFavorites.data ?? []) as Array<{ id: string; user_id: string }>).filter((favorite) => targetFavoriteUsers.has(favorite.user_id)).map((favorite) => favorite.id);
+  if (duplicateFavoriteIds.length) await supabase.from("favorites").delete().in("id", duplicateFavoriteIds);
+  await supabase.from("favorites").update({ venue_id: targetVenueId } as never).eq("venue_id", sourceVenueId);
+
+  const targetVisitKeys = new Set(((targetVisits.data ?? []) as Array<{ user_id: string; visited_on: string }>).map((visit) => `${visit.user_id}:${visit.visited_on}`));
+  const movableVisitIds = ((sourceVisits.data ?? []) as Array<{ id: string; user_id: string; visited_on: string }>).filter((visit) => !targetVisitKeys.has(`${visit.user_id}:${visit.visited_on}`)).map((visit) => visit.id);
+  if (movableVisitIds.length) await supabase.from("visits").update({ venue_id: targetVenueId } as never).in("id", movableVisitIds);
+
+  await Promise.all([
+    supabase.from("passport_stamps").update({ venue_id: targetVenueId } as never).eq("venue_id", sourceVenueId),
+    supabase.from("journal_entries").update({ venue_id: targetVenueId } as never).eq("venue_id", sourceVenueId),
+    supabase.from("venue_claims").update({ venue_id: targetVenueId } as never).eq("venue_id", sourceVenueId).neq("status", "rejected"),
+    supabase.from("venue_import_staging").update({ duplicate_existing_venue_id: targetVenueId } as never).eq("duplicate_existing_venue_id", sourceVenueId)
+  ]);
+
+  const targetTagRows = ((await supabase.from("venue_tags").select("tag_id").eq("venue_id", targetVenueId).limit(200)).data ?? []) as Array<{ tag_id: string }>;
+  const targetTags = new Set(targetTagRows.map((tag) => tag.tag_id));
+  const missingTags = ((sourceTags.data ?? []) as Array<{ tag_id: string }>).filter((tag) => !targetTags.has(tag.tag_id)).map((tag) => ({ tag_id: tag.tag_id, venue_id: targetVenueId }));
+  if (missingTags.length) await supabase.from("venue_tags").insert(missingTags as never);
+
+  const archivedAt = new Date().toISOString();
+  await supabase
+    .from("venues")
+    .update({
+      archived_at: archivedAt,
+      archived_by: admin.id,
+      is_published: false,
+      merge_notes: mergeReason || null,
+      merged_into_venue_id: targetVenueId,
+      review_status: "hidden"
+    } as never)
+    .eq("id", sourceVenueId);
+
+  const preservedCounts = {
+    duplicateFavoritesRemoved: duplicateFavoriteIds.length,
+    favoritesMoved: Math.max(((sourceFavorites.data ?? []) as unknown[]).length - duplicateFavoriteIds.length, 0),
+    journalsMoved: "all",
+    passportStampsMoved: "all",
+    tagsCopied: missingTags.length,
+    visitConflictsKeptOnArchivedVenue: ((sourceVisits.data ?? []) as unknown[]).length - movableVisitIds.length,
+    visitsMoved: movableVisitIds.length
+  };
+
+  const { data: mergeRecord } = await supabase
+    .from("venue_merge_records")
+    .insert({
+      created_by: admin.id,
+      merge_reason: mergeReason || null,
+      preserved_counts: preservedCounts,
+      source_venue_id: sourceVenueId,
+      target_venue_id: targetVenueId
+    } as never)
+    .select("id")
+    .single();
+
+  const mergeRecordId = (mergeRecord as { id: string } | null)?.id ?? null;
+  await logAudit(admin.id, "venue_duplicate_merged", "venue", sourceVenueId, {
+    mergeRecordId,
+    reason: mergeReason || null,
+    sourceVenueId,
+    targetVenueId
+  });
+  await logAudit(admin.id, "venue_archived_after_merge", "venue", sourceVenueId, { targetVenueId });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/duplicates");
+  revalidatePath("/admin/duplicates/compare");
+  revalidatePath("/admin/venues");
+  revalidatePath(`/admin/venues/${sourceVenueId}`);
+  revalidatePath(`/admin/venues/${targetVenueId}`);
+  redirect(`/admin/duplicates?updated=merged`);
+}
+
 export async function updateJournalModeration(entryId: string, status: ModerationStatus) {
   const admin = await requireAdminProfile();
   if (!["active", "hidden", "flagged"].includes(status)) return;
