@@ -859,6 +859,7 @@ export type Database = {
           slug: string;
           source: string | null;
           source_id: string | null;
+          submitted_by: string | null;
           submission_status: Database["public"]["Enums"]["venue_submission_status"];
           updated_at: string;
           verification_score: number;
@@ -902,6 +903,7 @@ export type Database = {
           slug: string;
           source?: string | null;
           source_id?: string | null;
+          submitted_by?: string | null;
           submission_status?: Database["public"]["Enums"]["venue_submission_status"];
           updated_at?: string;
           verification_score?: number;
@@ -945,6 +947,7 @@ export type Database = {
           slug?: string;
           source?: string | null;
           source_id?: string | null;
+          submitted_by?: string | null;
           submission_status?: Database["public"]["Enums"]["venue_submission_status"];
           updated_at?: string;
           verification_score?: number;
@@ -976,6 +979,13 @@ export type Database = {
           {
             foreignKeyName: "venues_reviewed_by_fkey";
             columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venues_submitted_by_fkey";
+            columns: ["submitted_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];

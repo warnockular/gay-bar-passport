@@ -39,6 +39,7 @@ const venueDataFoundationDefaults = {
   reviewed_by: null,
   source: null,
   source_id: null,
+  submitted_by: null,
   submission_status: "admin_created" as const,
   verification_score: 0,
   verification_status: "unverified" as const

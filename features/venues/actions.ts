@@ -77,6 +77,7 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     slug,
     source: "community_submission",
     source_id: venueId,
+    submitted_by: user.id,
     submission_status: "community_submitted",
     verification_score: 0,
     verification_status: "unverified",
