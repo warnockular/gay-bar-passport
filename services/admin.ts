@@ -12,6 +12,12 @@ export type AdminSummary = {
   publicProfiles: number;
   recentActivity: Array<{ date: string; label: string }>;
   totalUsers: number;
+  venueModeration: {
+    imported: number;
+    pendingReview: number;
+    unverified: number;
+    verified: number;
+  };
   venues: number;
   visits: number;
 };
@@ -46,7 +52,25 @@ type TablesMap = {
 
 export async function getAdminSummary(): Promise<AdminSummary> {
   const supabase = await createSupabaseServerClient();
-  const [totalUsers, publicProfiles, venues, favorites, visits, passportStamps, journalEntries, publicJournals, comments, follows, moderationQueue, users, journals] = await Promise.all([
+  const [
+    totalUsers,
+    publicProfiles,
+    venues,
+    favorites,
+    visits,
+    passportStamps,
+    journalEntries,
+    publicJournals,
+    comments,
+    follows,
+    moderationQueue,
+    venueUnverified,
+    venuePendingReview,
+    venueVerified,
+    venueImported,
+    users,
+    journals
+  ] = await Promise.all([
     count("profiles"),
     count("profiles", (query) => query.is("deleted_at", null)),
     count("venues"),
@@ -58,6 +82,10 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     count("journal_comments"),
     count("follows"),
     count("moderation_flags", (query) => query.eq("status", "open")),
+    count("venues", (query) => query.eq("verification_status", "unverified")),
+    count("venues", (query) => query.eq("review_status", "pending_review")),
+    count("venues", (query) => query.neq("verification_status", "unverified")),
+    count("venues", (query) => query.eq("submission_status", "imported")),
     supabase.from("profiles").select("display_name, created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("journal_entries").select("title, created_at").order("created_at", { ascending: false }).limit(5)
   ]);
@@ -67,7 +95,26 @@ export async function getAdminSummary(): Promise<AdminSummary> {
     ...((journals.data ?? []) as Pick<Tables<"journal_entries">, "created_at" | "title">[]).map((journal) => ({ date: journal.created_at, label: `Journal entry: ${journal.title}` }))
   ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
 
-  return { comments, favorites, follows, journalEntries, moderationQueue, passportStamps, publicJournals, publicProfiles, recentActivity, totalUsers, venues, visits };
+  return {
+    comments,
+    favorites,
+    follows,
+    journalEntries,
+    moderationQueue,
+    passportStamps,
+    publicJournals,
+    publicProfiles,
+    recentActivity,
+    totalUsers,
+    venueModeration: {
+      imported: venueImported,
+      pendingReview: venuePendingReview,
+      unverified: venueUnverified,
+      verified: venueVerified
+    },
+    venues,
+    visits
+  };
 }
 
 export async function listAdminUsers() {
@@ -84,6 +131,27 @@ export async function getAdminUser(userId: string) {
 export async function listAdminVenues() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.from("venues").select("*").order("name").limit(100);
+  return (data ?? []) as AdminVenue[];
+}
+
+export type VenueQueueFilter = "all" | "claimed_review" | "community_submitted" | "imported_review" | "owner_submitted" | "unverified";
+export type VenueQueueSort = "name" | "newest" | "score";
+
+export async function listAdminVenueReviewQueue(filter: VenueQueueFilter = "unverified", sort: VenueQueueSort = "newest") {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase.from("venues").select("*");
+
+  if (filter === "unverified") query = query.eq("verification_status", "unverified");
+  if (filter === "community_submitted") query = query.eq("submission_status", "community_submitted");
+  if (filter === "owner_submitted") query = query.eq("submission_status", "owner_submitted");
+  if (filter === "imported_review") query = query.eq("submission_status", "imported").eq("review_status", "pending_review");
+  if (filter === "claimed_review") query = query.not("claimed_by", "is", null).is("reviewed_at", null);
+
+  if (sort === "name") query = query.order("name", { ascending: true });
+  if (sort === "score") query = query.order("verification_score", { ascending: true }).order("name", { ascending: true });
+  if (sort === "newest") query = query.order("created_at", { ascending: false });
+
+  const { data } = await query.limit(100);
   return (data ?? []) as AdminVenue[];
 }
 

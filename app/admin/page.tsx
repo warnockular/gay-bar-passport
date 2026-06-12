@@ -34,6 +34,10 @@ export default async function AdminDashboardPage() {
         <SummaryCard label="Comments" value={summary.comments} />
         <SummaryCard label="Follows" value={summary.follows} />
         <SummaryCard label="Moderation queue" value={summary.moderationQueue} />
+        <SummaryCard label="Unverified venues" value={summary.venueModeration.unverified} />
+        <SummaryCard label="Pending venue review" value={summary.venueModeration.pendingReview} />
+        <SummaryCard label="Verified venues" value={summary.venueModeration.verified} />
+        <SummaryCard label="Imported venues" value={summary.venueModeration.imported} />
       </div>
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <Card className="bg-card/90 p-6">

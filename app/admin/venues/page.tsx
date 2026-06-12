@@ -11,6 +11,9 @@ export default async function AdminVenuesPage() {
     <div>
       <Badge>Venues</Badge>
       <h1 className="mt-5 font-serif text-5xl font-semibold">Venue review.</h1>
+      <Link href="/admin/venues/review" className="mt-4 inline-block rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold text-primary hover:bg-muted">
+        Open venue moderation queue
+      </Link>
       <div className="mt-8 space-y-4">
         {venues.map((venue) => (
           <Card key={venue.id} className="bg-card/90 p-5">

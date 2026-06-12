@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { updateVenueMetadata, updateVenueStatus } from "@/features/admin/actions";
+import { updateVenueIdentityClassification, updateVenueMetadata, updateVenueSource, updateVenueStatus, updateVenueVerification } from "@/features/admin/actions";
 import { getAdminVenue } from "@/services/admin";
 
 type AdminVenuePageProps = {
@@ -71,6 +71,43 @@ export default async function AdminVenuePage({ params }: AdminVenuePageProps) {
               <dd className="text-muted-foreground">{venue.reviewed_by ? `Reviewed ${venue.reviewed_at ?? ""}` : "Not reviewed in Phase 11B"}</dd>
             </div>
           </dl>
+          <div className="mt-6 space-y-5">
+            <div>
+              <h3 className="font-semibold">Verification actions</h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(["community_verified", "owner_verified", "admin_verified", "unverified"] as const).map((status) => (
+                  <form key={status} action={updateVenueVerification.bind(null, venue.id, status)}>
+                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">
+                      {status}
+                    </button>
+                  </form>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold">Identity classification</h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(["lgbtq_venue", "lgbtq_friendly", "historic_site", "community_recommended"] as const).map((classification) => (
+                  <form key={classification} action={updateVenueIdentityClassification.bind(null, venue.id, classification)}>
+                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">
+                      {classification}
+                    </button>
+                  </form>
+                ))}
+              </div>
+            </div>
+            <form action={updateVenueSource.bind(null, venue.id)} className="space-y-3">
+              <h3 className="font-semibold">Source management</h3>
+              <input name="source" defaultValue={venue.source ?? ""} className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Source, e.g. manual_import" />
+              <input name="sourceId" defaultValue={venue.source_id ?? ""} className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm" placeholder="Source ID" />
+              <select name="submissionStatus" defaultValue={venue.submission_status} className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm">
+                {["imported", "community_submitted", "owner_submitted", "admin_created"].map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+              <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Save source state</button>
+            </form>
+          </div>
         </Card>
       </div>
     </div>
