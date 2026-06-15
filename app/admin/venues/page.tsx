@@ -4,6 +4,13 @@ import { Card } from "@/components/ui/card";
 import { createBulkOperationDraft, createModerationFlag, updateVenueStatus } from "@/features/admin/actions";
 import { listAdminVenues, listBulkOperationDrafts } from "@/services/admin";
 
+function label(value: string) {
+  return value
+    .split("_")
+    .map((part) => (part.toLowerCase() === "lgbtq" ? "LGBTQ" : part.slice(0, 1).toUpperCase() + part.slice(1)))
+    .join(" ");
+}
+
 export default async function AdminVenuesPage() {
   const [venues, bulkDrafts] = await Promise.all([listAdminVenues(), listBulkOperationDrafts()]);
 
@@ -34,12 +41,12 @@ export default async function AdminVenuesPage() {
                 <Link href={`/admin/venues/${venue.id}`} className="font-serif text-2xl font-semibold hover:text-primary">{venue.name}</Link>
                 <p className="mt-1 text-sm text-muted-foreground">{venue.city}, {venue.country} · {venue.category}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge>{venue.review_status}</Badge>
+                  <Badge>{label(venue.review_status)}</Badge>
                   <Badge>{venue.is_published ? "published" : "hidden"}</Badge>
-                  <Badge>{venue.verification_status}</Badge>
-                  <Badge>{venue.submission_status}</Badge>
-                  <Badge>{venue.identity_classification}</Badge>
-                  <Badge>{venue.readiness_status}</Badge>
+                  <Badge>{label(venue.verification_status)}</Badge>
+                  <Badge>{label(venue.submission_status)}</Badge>
+                  <Badge>{label(venue.identity_classification)}</Badge>
+                  <Badge>{label(venue.readiness_status)}</Badge>
                   <Badge>{venue.completeness_score}/100 complete</Badge>
                   {venue.featured ? <Badge>featured</Badge> : null}
                 </div>
@@ -51,7 +58,7 @@ export default async function AdminVenuesPage() {
               <div className="flex flex-wrap gap-2">
                 {(["active", "hidden", "pending_review"] as const).map((status) => (
                   <form key={status} action={updateVenueStatus.bind(null, venue.id, status, undefined)}>
-                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">{status}</button>
+                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Set {label(status)}</button>
                   </form>
                 ))}
                 <form action={createModerationFlag.bind(null, "venue", venue.id, "Venue flagged for review")}>

@@ -31,13 +31,13 @@ async function logAudit(actorId: string, action: string, targetType: string, tar
 
 function redirectWithFeedback(path?: string, key?: string) {
   if (path && path.startsWith("/")) {
-    redirect(`${path}?updated=${key ?? "saved"}`);
+    redirect(`${path}${path.includes("?") ? "&" : "?"}updated=${key ?? "saved"}`);
   }
 }
 
 function redirectWithError(path?: string, message = "save-failed") {
   if (path && path.startsWith("/")) {
-    redirect(`${path}?error=${encodeURIComponent(message)}`);
+    redirect(`${path}${path.includes("?") ? "&" : "?"}error=${encodeURIComponent(message)}`);
   }
 }
 
@@ -113,6 +113,15 @@ export async function updateVenueStatus(venueId: string, status: VenueStatus, fe
 export async function updateVenueMetadata(venueId: string, formData: FormData) {
   const admin = await requireAdminProfile();
   const category = String(formData.get("category") ?? "bar") as Database["public"]["Enums"]["venue_category"];
+  const imageUrl = String(formData.get("imageUrl") ?? "").trim();
+  const latitude = String(formData.get("latitude") ?? "").trim();
+  const longitude = String(formData.get("longitude") ?? "").trim();
+  const parsedLatitude = latitude ? Number(latitude) : null;
+  const parsedLongitude = longitude ? Number(longitude) : null;
+  if ((parsedLatitude !== null && Number.isNaN(parsedLatitude)) || (parsedLongitude !== null && Number.isNaN(parsedLongitude))) {
+    redirectWithError(String(formData.get("feedbackPath") ?? ""), "Coordinates must be valid numbers.");
+    return;
+  }
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("venues")
@@ -122,6 +131,9 @@ export async function updateVenueMetadata(venueId: string, formData: FormData) {
       city: String(formData.get("city") ?? ""),
       country: String(formData.get("country") ?? ""),
       description: String(formData.get("description") ?? ""),
+      image_url: imageUrl || null,
+      latitude: parsedLatitude,
+      longitude: parsedLongitude,
       opening_hours: String(formData.get("openingHours") ?? ""),
       name: String(formData.get("name") ?? ""),
       neighborhood: String(formData.get("neighborhood") ?? ""),

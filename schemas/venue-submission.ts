@@ -8,6 +8,7 @@ export const venueSubmissionSchema = z.object({
   description: z.string().trim().min(20, "Add a short description for moderators.").max(1200, "Keep descriptions under 1,200 characters."),
   imageUrl: z.string().trim().url("Enter a valid image URL.").optional().or(z.literal("")),
   name: z.string().trim().min(2, "Enter the venue name.").max(120, "Keep names under 120 characters."),
+  neighborhood: z.string().trim().max(120, "Keep neighborhoods under 120 characters.").optional().or(z.literal("")),
   websiteUrl: z.string().trim().url("Enter a valid website URL.").optional().or(z.literal(""))
 });
 

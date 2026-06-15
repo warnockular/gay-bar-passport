@@ -44,6 +44,7 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     description: formData.get("description"),
     imageUrl: formData.get("imageUrl"),
     name: formData.get("name"),
+    neighborhood: formData.get("neighborhood"),
     websiteUrl: formData.get("websiteUrl")
   };
   const values = Object.fromEntries(Object.entries(rawValues).map(([key, value]) => [key, String(value ?? "")])) as Record<keyof VenueSubmissionValues, string>;
@@ -89,7 +90,7 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     is_lgbtq_owned: false,
     is_published: false,
     name: parsed.data.name,
-    neighborhood: parsed.data.address,
+    neighborhood: parsed.data.neighborhood || null,
     review_status: "pending_review",
     reviewed_at: null,
     reviewed_by: null,

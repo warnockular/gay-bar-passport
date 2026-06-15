@@ -25,6 +25,7 @@ const initialValues = {
   description: "",
   imageUrl: "",
   name: "",
+  neighborhood: "",
   websiteUrl: ""
 };
 
@@ -81,9 +82,14 @@ export function VenueSubmissionForm() {
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="address">Address or neighborhood</Label>
+        <Label htmlFor="address">Address</Label>
         <Input id="address" name="address" value={values.address} onChange={(event) => updateValue("address", event.target.value)} aria-invalid={Boolean(fieldError(result, "address"))} />
         {fieldError(result, "address") ? <p className="text-sm text-destructive">{fieldError(result, "address")}</p> : null}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="neighborhood">Neighborhood optional</Label>
+        <Input id="neighborhood" name="neighborhood" value={values.neighborhood} onChange={(event) => updateValue("neighborhood", event.target.value)} aria-invalid={Boolean(fieldError(result, "neighborhood"))} />
+        {fieldError(result, "neighborhood") ? <p className="text-sm text-destructive">{fieldError(result, "neighborhood")}</p> : null}
       </div>
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">

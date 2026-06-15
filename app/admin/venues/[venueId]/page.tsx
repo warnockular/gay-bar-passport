@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -105,40 +106,83 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
       <div className="grid gap-6 xl:grid-cols-[1fr_24rem]">
         <div className="space-y-6">
           <Card className="bg-card/90 p-6">
-            <h2 className="font-serif text-3xl font-semibold">Core Venue Details</h2>
-            <form action={updateVenueMetadata.bind(null, venue.id)} className="mt-5 grid gap-4 md:grid-cols-2">
+            <h2 className="font-serif text-3xl font-semibold">Venue Editing Dashboard</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Manage the practical fields travelers see first: identity, location, media, hours, and description.</p>
+            <form action={updateVenueMetadata.bind(null, venue.id)} className="mt-6 space-y-8">
               <input type="hidden" name="feedbackPath" value={feedbackPath} />
-              <Field label="Name">
-                <input name="name" defaultValue={venue.name} className={InputClass()} />
-              </Field>
-              <Field label="Type">
-                <select name="category" defaultValue={venue.category} className={InputClass()}>
-                  {categoryOptions.map((category) => <option key={category} value={category}>{label(category)}</option>)}
-                </select>
-              </Field>
-              <Field label="City">
-                <input name="city" defaultValue={venue.city} className={InputClass()} />
-              </Field>
-              <Field label="Country">
-                <input name="country" defaultValue={venue.country} className={InputClass()} />
-              </Field>
-              <Field label="Neighborhood">
-                <input name="neighborhood" defaultValue={venue.neighborhood ?? ""} className={InputClass()} />
-              </Field>
-              <Field label="Address">
-                <input name="address" defaultValue={venue.address ?? ""} className={InputClass()} />
-              </Field>
-              <Field label="Website">
-                <input name="websiteUrl" defaultValue={venue.website_url ?? ""} className={InputClass()} />
-              </Field>
-              <Field label="Opening hours">
-                <input name="openingHours" defaultValue={venue.opening_hours ?? ""} className={InputClass()} />
-              </Field>
-              <label className="space-y-2 text-sm font-semibold md:col-span-2">
-                <span>Description</span>
-                <textarea name="description" defaultValue={venue.description ?? ""} className="min-h-36 w-full rounded-md border border-input bg-background/80 px-3 py-2 text-sm" />
-              </label>
-              <div className="md:col-span-2">
+              <section>
+                <h3 className="font-serif text-2xl font-semibold">Basic Information</h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <Field label="Name">
+                    <input name="name" defaultValue={venue.name} className={InputClass()} />
+                  </Field>
+                  <Field label="Type">
+                    <select name="category" defaultValue={venue.category} className={InputClass()}>
+                      {categoryOptions.map((category) => <option key={category} value={category}>{label(category)}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Website">
+                    <input name="websiteUrl" defaultValue={venue.website_url ?? ""} className={InputClass()} />
+                  </Field>
+                </div>
+              </section>
+
+              <section id="location">
+                <h3 className="font-serif text-2xl font-semibold">Location</h3>
+                <p className="mt-2 text-sm text-muted-foreground">Coordinates power future map and directions experiences. Leave blank if unknown.</p>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <Field label="Address">
+                    <input name="address" defaultValue={venue.address ?? ""} className={InputClass()} />
+                  </Field>
+                  <Field label="Neighborhood">
+                    <input name="neighborhood" defaultValue={venue.neighborhood ?? ""} className={InputClass()} />
+                  </Field>
+                  <Field label="City">
+                    <input name="city" defaultValue={venue.city} className={InputClass()} />
+                  </Field>
+                  <Field label="Country">
+                    <input name="country" defaultValue={venue.country} className={InputClass()} />
+                  </Field>
+                  <Field label="Latitude">
+                    <input name="latitude" defaultValue={venue.latitude ?? ""} inputMode="decimal" className={InputClass()} />
+                  </Field>
+                  <Field label="Longitude">
+                    <input name="longitude" defaultValue={venue.longitude ?? ""} inputMode="decimal" className={InputClass()} />
+                  </Field>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="font-serif text-2xl font-semibold">Photos & Media</h3>
+                {venue.image_url ? (
+                  <div className="relative mt-4 h-56 overflow-hidden rounded-md border border-border bg-background/70">
+                    <Image src={venue.image_url} alt={`${venue.name} primary venue image preview`} fill className="object-cover" sizes="(min-width: 1280px) 50vw, 100vw" />
+                  </div>
+                ) : (
+                  <p className="mt-4 rounded-md border border-border bg-background/70 p-4 text-sm text-muted-foreground">No primary image is set. Add an image URL to improve venue readiness.</p>
+                )}
+                <div className="mt-4">
+                  <Field label="Primary image URL">
+                    <input name="imageUrl" defaultValue={venue.image_url ?? ""} className={InputClass()} placeholder="https://images.unsplash.com/..." />
+                  </Field>
+                  <p className="mt-2 text-xs text-muted-foreground">Clear this field and save to remove the current image. Direct uploads remain a future enhancement.</p>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="font-serif text-2xl font-semibold">Hours & Description</h3>
+                <div className="mt-4 grid gap-4">
+                  <Field label="Opening hours">
+                    <input name="openingHours" defaultValue={venue.opening_hours ?? ""} className={InputClass()} />
+                  </Field>
+                  <label className="space-y-2 text-sm font-semibold">
+                    <span>Description</span>
+                    <textarea name="description" defaultValue={venue.description ?? ""} className="min-h-36 w-full rounded-md border border-input bg-background/80 px-3 py-2 text-sm" />
+                  </label>
+                </div>
+              </section>
+
+              <div>
                 <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Save metadata</button>
                 <StatusMessage updated={updated} section="metadata" />
               </div>
@@ -208,6 +252,9 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
                   {venue.missing_data.map((item) => <Badge key={item}>{label(item)}</Badge>)}
                 </div>
                 <p className="mt-4 text-sm leading-6 text-muted-foreground">Add missing fields, coordinates, hours, photos, identity, and verification to improve the score.</p>
+                {venue.missing_data.includes("coordinates") ? (
+                  <a href="#location" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">Add latitude and longitude in Location</a>
+                ) : null}
               </div>
             ) : (
               <p className="mt-5 text-sm text-muted-foreground">No tracked quality gaps.</p>
@@ -217,6 +264,11 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
           <Card className="bg-card/90 p-6">
             <h2 className="font-serif text-3xl font-semibold">Review Status</h2>
             <p className="mt-2 text-sm text-muted-foreground">Current: {label(venue.review_status)}</p>
+            <div className="mt-4 space-y-2 rounded-md border border-border bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
+              <p><span className="font-semibold text-foreground">Review status</span> controls moderation workflow.</p>
+              <p><span className="font-semibold text-foreground">Public visibility</span> is active only when review status is Active.</p>
+              <p><span className="font-semibold text-foreground">Verification</span> describes trust level, while readiness describes data completeness.</p>
+            </div>
             <div className="mt-5 flex flex-wrap gap-2">
               {reviewStatusOptions.map((status) => (
                 <form key={status} action={updateVenueStatus.bind(null, venue.id, status, feedbackPath)}>
