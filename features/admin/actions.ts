@@ -149,6 +149,8 @@ export async function updateVenueMetadata(venueId: string, formData: FormData) {
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
+  const publicPath = String(formData.get("publicPath") ?? "");
+  if (publicPath.startsWith("/venues/")) revalidatePath(publicPath);
   redirectWithFeedback(String(formData.get("feedbackPath") ?? ""), "metadata");
 }
 

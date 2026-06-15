@@ -1,5 +1,4 @@
 import { AlertCircle, CheckCircle2 } from "lucide-react";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import {
   updateVenueVerification,
   reviewVenueClaim
 } from "@/features/admin/actions";
+import { VenueImagePreview } from "@/features/venues/venue-image-preview";
 import { getAdminVenue, listVenueClaimsForVenue } from "@/services/admin";
 import type { Tables } from "@/types/database";
 
@@ -110,6 +110,7 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
             <p className="mt-2 text-sm leading-6 text-muted-foreground">Manage the practical fields travelers see first: identity, location, media, hours, and description.</p>
             <form action={updateVenueMetadata.bind(null, venue.id)} className="mt-6 space-y-8">
               <input type="hidden" name="feedbackPath" value={feedbackPath} />
+              <input type="hidden" name="publicPath" value={`/venues/${venue.slug}`} />
               <section>
                 <h3 className="font-serif text-2xl font-semibold">Basic Information</h3>
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -154,13 +155,7 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
 
               <section>
                 <h3 className="font-serif text-2xl font-semibold">Photos & Media</h3>
-                {venue.image_url ? (
-                  <div className="relative mt-4 h-56 overflow-hidden rounded-md border border-border bg-background/70">
-                    <Image src={venue.image_url} alt={`${venue.name} primary venue image preview`} fill className="object-cover" sizes="(min-width: 1280px) 50vw, 100vw" />
-                  </div>
-                ) : (
-                  <p className="mt-4 rounded-md border border-border bg-background/70 p-4 text-sm text-muted-foreground">No primary image is set. Add an image URL to improve venue readiness.</p>
-                )}
+                <VenueImagePreview imageUrl={venue.image_url} alt={`${venue.name} primary venue image preview`} className="mt-4 h-56" mode="admin" />
                 <div className="mt-4">
                   <Field label="Primary image URL">
                     <input name="imageUrl" defaultValue={venue.image_url ?? ""} className={InputClass()} placeholder="https://images.unsplash.com/..." />
