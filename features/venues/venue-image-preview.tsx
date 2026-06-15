@@ -17,10 +17,14 @@ export function VenueImagePreview({ alt, className, imageUrl, mode = "public" }:
   const [failed, setFailed] = useState(false);
   const hasImage = Boolean(imageUrl) && !failed;
 
+  if (mode === "public" && !hasImage) return null;
+
   return (
-    <div className={cn("relative overflow-hidden rounded-md border border-border bg-background/70", className)}>
+    <div className={cn("relative overflow-hidden rounded-md border border-border bg-muted/40", className)}>
       {hasImage ? (
-        <img src={imageUrl ?? ""} alt={alt} className="h-full w-full object-cover" onError={() => setFailed(true)} />
+        <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.72),rgba(255,255,255,0.28))] p-5">
+          <img src={imageUrl ?? ""} alt={alt} className="max-h-full max-w-full object-contain" onError={() => setFailed(true)} />
+        </div>
       ) : (
         <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
           <ImageOff className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
