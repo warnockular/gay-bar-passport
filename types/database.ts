@@ -451,6 +451,70 @@ export type Database = {
           }
         ];
       };
+      venue_duplicate_candidates: {
+        Row: {
+          confidence_level: "high" | "medium" | "low";
+          confidence_score: number;
+          created_at: string;
+          id: string;
+          match_reasons: string[];
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          status: "pending" | "dismissed" | "merged";
+          updated_at: string;
+          venue_a_id: string;
+          venue_b_id: string;
+        };
+        Insert: {
+          confidence_level: "high" | "medium" | "low";
+          confidence_score: number;
+          created_at?: string;
+          id?: string;
+          match_reasons?: string[];
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: "pending" | "dismissed" | "merged";
+          updated_at?: string;
+          venue_a_id: string;
+          venue_b_id: string;
+        };
+        Update: {
+          confidence_level?: "high" | "medium" | "low";
+          confidence_score?: number;
+          created_at?: string;
+          id?: string;
+          match_reasons?: string[];
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: "pending" | "dismissed" | "merged";
+          updated_at?: string;
+          venue_a_id?: string;
+          venue_b_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "venue_duplicate_candidates_reviewed_by_fkey";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_duplicate_candidates_venue_a_id_fkey";
+            columns: ["venue_a_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_duplicate_candidates_venue_b_id_fkey";
+            columns: ["venue_b_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       venue_bulk_operation_drafts: {
         Row: {
           created_at: string;

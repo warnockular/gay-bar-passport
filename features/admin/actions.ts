@@ -16,6 +16,7 @@ type ModerationStatus = Tables<"journal_entries">["moderation_status"];
 type ImportApprovalStatus = Tables<"venue_import_staging">["approval_status"];
 type VenueBulkOperationType = Tables<"venue_bulk_operation_drafts">["operation_type"];
 type VenueClaimStatus = Tables<"venue_claims">["status"];
+type VenueDuplicateCandidateLevel = Tables<"venue_duplicate_candidates">["confidence_level"];
 
 const verificationScores: Record<VenueVerificationStatus, number> = {
   admin_verified: 100,
@@ -319,6 +320,176 @@ export async function reviewVenueClaim(claimId: string, status: Extract<VenueCla
   redirectWithFeedback(feedbackPath, status === "approved" ? "claim-approved" : "claim-rejected");
 }
 
+type DuplicateDetectionVenue = Pick<Tables<"venues">, "address" | "archived_at" | "city" | "country" | "id" | "latitude" | "longitude" | "name" | "website_url">;
+
+function normalizeMatchText(value?: string | null) {
+  return (value ?? "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(the|bar|club|lounge|nyc|inc|llc)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function websiteDomain(value?: string | null) {
+  if (!value) return "";
+  try {
+    const url = new URL(value.startsWith("http") ? value : `https://${value}`);
+    return url.hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return value.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0] ?? "";
+  }
+}
+
+function tokenSimilarity(first: string, second: string) {
+  if (!first || !second) return 0;
+  if (first === second) return 1;
+  if (first.includes(second) || second.includes(first)) return 0.86;
+  const firstTokens = new Set(first.split(" ").filter(Boolean));
+  const secondTokens = new Set(second.split(" ").filter(Boolean));
+  const overlap = [...firstTokens].filter((token) => secondTokens.has(token)).length;
+  const union = new Set([...firstTokens, ...secondTokens]).size;
+  return union ? overlap / union : 0;
+}
+
+function coordinateDistanceKm(first: DuplicateDetectionVenue, second: DuplicateDetectionVenue) {
+  if (first.latitude === null || first.longitude === null || second.latitude === null || second.longitude === null) return null;
+  const earthRadiusKm = 6371;
+  const toRadians = (degrees: number) => degrees * Math.PI / 180;
+  const latitudeDelta = toRadians(second.latitude - first.latitude);
+  const longitudeDelta = toRadians(second.longitude - first.longitude);
+  const a = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(toRadians(first.latitude)) * Math.cos(toRadians(second.latitude)) * Math.sin(longitudeDelta / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function scoreDuplicatePair(first: DuplicateDetectionVenue, second: DuplicateDetectionVenue) {
+  const reasons: string[] = [];
+  let score = 0;
+
+  const sameCity = normalizeMatchText(first.city) === normalizeMatchText(second.city);
+  const sameCountry = normalizeMatchText(first.country) === normalizeMatchText(second.country);
+  if (sameCity && sameCountry) {
+    score += 10;
+    reasons.push("same_city");
+  }
+
+  const nameSimilarity = tokenSimilarity(normalizeMatchText(first.name), normalizeMatchText(second.name));
+  if (nameSimilarity >= 0.85) {
+    score += 35;
+    reasons.push("similar_name");
+  } else if (nameSimilarity >= 0.6) {
+    score += 22;
+    reasons.push("similar_name");
+  }
+
+  const firstAddress = normalizeMatchText(first.address);
+  const secondAddress = normalizeMatchText(second.address);
+  if (firstAddress && secondAddress && firstAddress === secondAddress) {
+    score += 25;
+    reasons.push("same_address");
+  }
+
+  const firstDomain = websiteDomain(first.website_url);
+  const secondDomain = websiteDomain(second.website_url);
+  if (firstDomain && secondDomain && firstDomain === secondDomain) {
+    score += 35;
+    reasons.push("same_website");
+  }
+
+  const distanceKm = coordinateDistanceKm(first, second);
+  if (distanceKm !== null && distanceKm <= 0.25) {
+    score += distanceKm <= 0.1 ? 20 : 15;
+    reasons.push("nearby_coordinates");
+  }
+
+  if (!(sameCity && sameCountry) && !reasons.includes("same_website") && !reasons.includes("nearby_coordinates")) return null;
+  const confidenceScore = Math.min(score, 100);
+  if (confidenceScore < 60) return null;
+
+  const confidenceLevel: VenueDuplicateCandidateLevel = confidenceScore >= 95 ? "high" : confidenceScore >= 80 ? "medium" : "low";
+  return { confidenceLevel, confidenceScore, reasons };
+}
+
+function duplicatePairKey(firstId: string, secondId: string) {
+  return [firstId, secondId].sort().join(":");
+}
+
+export async function generateVenueDuplicateCandidates() {
+  const admin = await requireAdminProfile();
+  const supabase = await createSupabaseServerClient();
+  const [{ data: venueRows }, { data: existingRows }] = await Promise.all([
+    supabase
+      .from("venues")
+      .select("id, name, address, city, country, website_url, latitude, longitude, archived_at")
+      .is("archived_at", null)
+      .limit(1000),
+    supabase
+      .from("venue_duplicate_candidates")
+      .select("venue_a_id, venue_b_id")
+      .limit(5000)
+  ]);
+
+  const venues = (venueRows ?? []) as DuplicateDetectionVenue[];
+  const existingPairs = new Set(((existingRows ?? []) as Array<Pick<Tables<"venue_duplicate_candidates">, "venue_a_id" | "venue_b_id">>)
+    .map((candidate) => duplicatePairKey(candidate.venue_a_id, candidate.venue_b_id)));
+  const candidates: Array<Database["public"]["Tables"]["venue_duplicate_candidates"]["Insert"]> = [];
+
+  for (let firstIndex = 0; firstIndex < venues.length; firstIndex += 1) {
+    for (let secondIndex = firstIndex + 1; secondIndex < venues.length; secondIndex += 1) {
+      const first = venues[firstIndex];
+      const second = venues[secondIndex];
+      const [venueAId, venueBId] = [first.id, second.id].sort();
+      if (existingPairs.has(duplicatePairKey(venueAId, venueBId))) continue;
+
+      const score = scoreDuplicatePair(first, second);
+      if (!score) continue;
+      candidates.push({
+        confidence_level: score.confidenceLevel,
+        confidence_score: score.confidenceScore,
+        match_reasons: score.reasons,
+        venue_a_id: venueAId,
+        venue_b_id: venueBId
+      });
+      existingPairs.add(duplicatePairKey(venueAId, venueBId));
+    }
+  }
+
+  if (candidates.length) {
+    await supabase.from("venue_duplicate_candidates").insert(candidates as never);
+  }
+
+  await logAudit(admin.id, "venue_duplicate_candidates_generated", "venue_duplicate_candidate", null, {
+    created: String(candidates.length)
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/duplicates");
+  redirect(`/admin/duplicates?updated=generated&created=${candidates.length}`);
+}
+
+export async function dismissDuplicateCandidate(candidateId: string) {
+  const admin = await requireAdminProfile();
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("venue_duplicate_candidates")
+    .update({
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: admin.id,
+      status: "dismissed"
+    } as never)
+    .eq("id", candidateId);
+
+  if (!error) {
+    await logAudit(admin.id, "venue_duplicate_candidate_dismissed", "venue_duplicate_candidate", candidateId);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/duplicates");
+  redirect("/admin/duplicates?updated=dismissed");
+}
+
 export async function createImportBatch(formData: FormData) {
   const admin = await requireAdminProfile();
   const sourceType = String(formData.get("sourceType") ?? "").trim();
@@ -389,6 +560,7 @@ export async function mergeDuplicateVenue(formData: FormData) {
   const sourceVenueId = String(formData.get("sourceVenueId") ?? "").trim();
   const targetVenueId = String(formData.get("targetVenueId") ?? "").trim();
   const mergeReason = String(formData.get("mergeReason") ?? "").trim();
+  const candidateId = String(formData.get("candidateId") ?? "").trim();
   if (!sourceVenueId || !targetVenueId || sourceVenueId === targetVenueId) return;
 
   const supabase = await createSupabaseServerClient();
@@ -468,6 +640,27 @@ export async function mergeDuplicateVenue(formData: FormData) {
     targetVenueId
   });
   await logAudit(admin.id, "venue_archived_after_merge", "venue", sourceVenueId, { targetVenueId });
+  const candidateUpdate = supabase
+    .from("venue_duplicate_candidates")
+    .update({
+      reviewed_at: archivedAt,
+      reviewed_by: admin.id,
+      status: "merged"
+    } as never);
+  const { data: mergedCandidate } = await (candidateId
+    ? candidateUpdate.eq("id", candidateId).select("id").maybeSingle()
+    : candidateUpdate
+      .or(`and(venue_a_id.eq.${sourceVenueId},venue_b_id.eq.${targetVenueId}),and(venue_a_id.eq.${targetVenueId},venue_b_id.eq.${sourceVenueId})`)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle());
+  const mergedCandidateId = (mergedCandidate as { id: string } | null)?.id ?? candidateId;
+  if (mergedCandidateId) {
+    await logAudit(admin.id, "venue_duplicate_candidate_merged", "venue_duplicate_candidate", mergedCandidateId, {
+      sourceVenueId,
+      targetVenueId
+    });
+  }
 
   revalidatePath("/admin");
   revalidatePath("/admin/duplicates");

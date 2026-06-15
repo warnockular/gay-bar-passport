@@ -21,6 +21,9 @@ const actionLabels: Record<string, string> = {
   venue_claim_requested: "Venue ownership claim requested",
   venue_community_submitted: "Venue submitted by community member",
   venue_archived_after_merge: "Venue archived after merge",
+  venue_duplicate_candidate_dismissed: "Duplicate candidate dismissed",
+  venue_duplicate_candidate_merged: "Duplicate candidate merged",
+  venue_duplicate_candidates_generated: "Duplicate candidates generated",
   venue_duplicate_merged: "Duplicate venue merged",
   venue_featured: "Venue marked as featured",
   venue_identity_changed: "Venue identity classification changed",
@@ -38,7 +41,7 @@ const actionLabels: Record<string, string> = {
 };
 
 const actionOptions = Object.keys(actionLabels).sort((a, b) => actionLabels[a].localeCompare(actionLabels[b]));
-const targetTypeOptions = ["comment", "import_batch", "journal", "report", "user", "venue", "venue_bulk_operation", "venue_claim", "venue_import_staging", "venue_merge"];
+const targetTypeOptions = ["comment", "import_batch", "journal", "report", "user", "venue", "venue_bulk_operation", "venue_claim", "venue_duplicate_candidate", "venue_import_staging", "venue_merge"];
 
 function humanize(value: string) {
   return value
@@ -59,6 +62,7 @@ function metadataKeyLabel(key: string) {
     claimantId: "Claimant ID",
     claimantName: "Claimant name",
     classification: "Identity classification",
+    created: "Candidates created",
     existingVenueId: "Existing venue ID",
     operationType: "Operation type",
     reason: "Reason",

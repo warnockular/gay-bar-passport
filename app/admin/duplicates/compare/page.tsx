@@ -5,7 +5,7 @@ import { mergeDuplicateVenue } from "@/features/admin/actions";
 import { getVenueMergePreview, listAdminVenues, type AdminVenue } from "@/services/admin";
 
 type AdminDuplicateComparePageProps = {
-  searchParams?: Promise<{ sourceVenueId?: string; targetVenueId?: string }>;
+  searchParams?: Promise<{ candidateId?: string; sourceVenueId?: string; targetVenueId?: string }>;
 };
 
 function label(value: string) {
@@ -51,6 +51,11 @@ export default async function AdminDuplicateComparePage({ searchParams }: AdminD
       <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground">
         Choose the duplicate record to archive and the canonical record to keep. The merge action is only available after this preview.
       </p>
+      {params?.candidateId ? (
+        <p className="mt-4 rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage" role="status">
+          Reviewing a generated duplicate candidate. Merging this pair will mark the candidate as merged.
+        </p>
+      ) : null}
 
       <Card className="mt-8 bg-card/90 p-5">
         <form action="/admin/duplicates/compare" className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
@@ -94,6 +99,7 @@ export default async function AdminDuplicateComparePage({ searchParams }: AdminD
             <form action={mergeDuplicateVenue} className="mt-6 space-y-4">
               <input type="hidden" name="sourceVenueId" value={preview.sourceVenue.id} />
               <input type="hidden" name="targetVenueId" value={preview.targetVenue.id} />
+              {params?.candidateId ? <input type="hidden" name="candidateId" value={params.candidateId} /> : null}
               <label className="grid gap-2 text-sm font-semibold">
                 Merge reason
                 <textarea name="mergeReason" className="min-h-24 rounded-md border border-input bg-background/80 px-3 py-2 text-sm" placeholder="Why is this venue a duplicate?" />

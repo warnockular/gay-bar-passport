@@ -45,6 +45,21 @@ export type AdminStagedVenue = Tables<"venue_import_staging"> & {
 export type AdminDuplicateCandidate = AdminStagedVenue & {
   importBatch?: Pick<Tables<"import_batches">, "id" | "source_name" | "source_type"> | null;
 };
+type DuplicateVenueSummary = Pick<Tables<"venues">, "address" | "archived_at" | "city" | "country" | "id" | "latitude" | "longitude" | "name" | "website_url">;
+export type AdminStoredDuplicateCandidate = Tables<"venue_duplicate_candidates"> & {
+  venueA?: DuplicateVenueSummary | null;
+  venueB?: DuplicateVenueSummary | null;
+};
+export type DuplicateCandidateFilters = {
+  city?: string;
+  confidenceLevel?: "all" | "high" | "medium" | "low";
+  country?: string;
+  sort?: "highest" | "lowest" | "newest" | "oldest";
+};
+export type DuplicateCandidateFilterOptions = {
+  cities: string[];
+  countries: string[];
+};
 export type VenueMergePreview = {
   favorites: number;
   favoriteConflicts: number;
@@ -76,7 +91,7 @@ export type AdminAuditLog = Tables<"audit_logs"> & {
   venue?: Pick<Tables<"venues">, "city" | "country" | "id" | "name"> | null;
 };
 
-async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_claims" | "venue_bulk_operation_drafts" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
+async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_claims" | "venue_bulk_operation_drafts" | "venue_duplicate_candidates" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
   const supabase = await createSupabaseServerClient();
   let query = supabase.from(table).select("*", { count: "exact", head: true });
   if (filter) query = filter(query);
@@ -95,6 +110,7 @@ type TablesMap = {
   profiles: Tables<"profiles">;
   venues: Tables<"venues">;
   venue_claims: Tables<"venue_claims">;
+  venue_duplicate_candidates: Tables<"venue_duplicate_candidates">;
   venue_merge_records: Tables<"venue_merge_records">;
   venue_bulk_operation_drafts: Tables<"venue_bulk_operation_drafts">;
   venue_import_staging: Tables<"venue_import_staging">;
@@ -293,6 +309,62 @@ export async function listDuplicateCandidates() {
     duplicateVenue: row.venues ?? null,
     importBatch: row.import_batches ?? null
   }));
+}
+
+export async function listVenueDuplicateCandidates(filters: DuplicateCandidateFilters = {}) {
+  const supabase = await createSupabaseServerClient();
+  let query = supabase
+    .from("venue_duplicate_candidates")
+    .select(`
+      *,
+      venueA:venues!venue_duplicate_candidates_venue_a_id_fkey(id, name, city, country, address, website_url, latitude, longitude, archived_at),
+      venueB:venues!venue_duplicate_candidates_venue_b_id_fkey(id, name, city, country, address, website_url, latitude, longitude, archived_at)
+    `)
+    .eq("status", "pending");
+
+  if (filters.confidenceLevel && filters.confidenceLevel !== "all") {
+    query = query.eq("confidence_level", filters.confidenceLevel);
+  }
+
+  if (filters.sort === "lowest") {
+    query = query.order("confidence_score", { ascending: true }).order("created_at", { ascending: false });
+  } else if (filters.sort === "oldest") {
+    query = query.order("created_at", { ascending: true });
+  } else if (filters.sort === "newest") {
+    query = query.order("created_at", { ascending: false });
+  } else {
+    query = query.order("confidence_score", { ascending: false }).order("created_at", { ascending: false });
+  }
+
+  const { data } = await query.limit(100);
+  const cityFilter = filters.city?.trim().toLowerCase();
+  const countryFilter = filters.country?.trim().toLowerCase();
+
+  return ((data ?? []) as Array<Tables<"venue_duplicate_candidates"> & {
+    venueA?: DuplicateVenueSummary | null;
+    venueB?: DuplicateVenueSummary | null;
+  }>).filter((candidate) => {
+    const cities = [candidate.venueA?.city, candidate.venueB?.city].filter(Boolean).map((city) => city!.toLowerCase());
+    const countries = [candidate.venueA?.country, candidate.venueB?.country].filter(Boolean).map((country) => country!.toLowerCase());
+    return (!cityFilter || cities.includes(cityFilter)) && (!countryFilter || countries.includes(countryFilter));
+  });
+}
+
+export async function listDuplicateCandidateFilterOptions(): Promise<DuplicateCandidateFilterOptions> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("venues")
+    .select("city, country")
+    .is("archived_at", null)
+    .order("country", { ascending: true })
+    .order("city", { ascending: true })
+    .limit(1000);
+
+  const rows = (data ?? []) as Array<Pick<Tables<"venues">, "city" | "country">>;
+  return {
+    cities: Array.from(new Set(rows.map((venue) => venue.city).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    countries: Array.from(new Set(rows.map((venue) => venue.country).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  };
 }
 
 export async function getVenueMergePreview(sourceVenueId: string, targetVenueId: string): Promise<VenueMergePreview | null> {
