@@ -561,12 +561,18 @@ export async function mergeDuplicateVenue(formData: FormData) {
   const targetVenueId = String(formData.get("targetVenueId") ?? "").trim();
   const mergeReason = String(formData.get("mergeReason") ?? "").trim();
   const candidateId = String(formData.get("candidateId") ?? "").trim();
+  const confirmation = String(formData.get("confirmation") ?? "").trim();
   if (!sourceVenueId || !targetVenueId || sourceVenueId === targetVenueId) return;
 
   const supabase = await createSupabaseServerClient();
   const { data: sourceVenue } = await supabase.from("venues").select("id, name, archived_at").eq("id", sourceVenueId).maybeSingle();
   const { data: targetVenue } = await supabase.from("venues").select("id, name").eq("id", targetVenueId).maybeSingle();
   if (!sourceVenue || !targetVenue || (sourceVenue as Pick<Tables<"venues">, "archived_at">).archived_at) return;
+  const expectedConfirmation = `I understand this will archive ${(sourceVenue as Pick<Tables<"venues">, "name">).name} and keep ${(targetVenue as Pick<Tables<"venues">, "name">).name}.`;
+  if (confirmation !== expectedConfirmation) {
+    const comparePath = `/admin/duplicates/compare?sourceVenueId=${encodeURIComponent(sourceVenueId)}&targetVenueId=${encodeURIComponent(targetVenueId)}${candidateId ? `&candidateId=${encodeURIComponent(candidateId)}` : ""}&error=confirmation`;
+    redirect(comparePath);
+  }
 
   const [sourceFavorites, targetFavorites, sourceVisits, targetVisits, sourceTags] = await Promise.all([
     supabase.from("favorites").select("id, user_id").eq("venue_id", sourceVenueId).limit(1000),

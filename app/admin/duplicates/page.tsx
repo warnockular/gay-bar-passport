@@ -185,7 +185,7 @@ export default async function AdminDuplicatesPage({ searchParams }: AdminDuplica
                   </Link>
                   <form action={dismissDuplicateCandidate.bind(null, candidate.id)}>
                     <button className="w-full rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted" type="submit">
-                      Dismiss
+                      Dismiss as not a duplicate
                     </button>
                   </form>
                 </div>
@@ -206,16 +206,16 @@ export default async function AdminDuplicatesPage({ searchParams }: AdminDuplica
         </p>
         <form action="/admin/duplicates/compare" className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
           <label className="grid gap-2 text-sm font-semibold">
-            Duplicate venue to archive
+            Venue to remove after merge
             <select name="sourceVenueId" className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" required>
-              <option value="">Select duplicate</option>
+              <option value="">Choose venue to remove</option>
               {activeVenues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name} · {venue.city}, {venue.country}</option>)}
             </select>
           </label>
           <label className="grid gap-2 text-sm font-semibold">
-            Canonical venue to keep
+            Official venue to keep
             <select name="targetVenueId" className="h-10 rounded-md border border-input bg-background/80 px-3 text-sm" required>
-              <option value="">Select canonical venue</option>
+              <option value="">Choose official venue</option>
               {activeVenues.map((venue) => <option key={venue.id} value={venue.id}>{venue.name} · {venue.city}, {venue.country}</option>)}
             </select>
           </label>
