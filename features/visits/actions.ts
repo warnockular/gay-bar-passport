@@ -35,7 +35,7 @@ async function uploadVisitPhotos(userId: string, visitId: string, photos: File[]
     }
 
     if (photo.size > 4 * 1024 * 1024) {
-      return { ok: false, message: "Keep each visit photo under 4 MB." };
+      return { ok: false, message: "This photo is too large. Please choose an image under 4 MB." };
     }
 
     const storagePath = `${userId}/${visitId}/photo-${Date.now()}-${index}.${getFileExtension(photo)}`;
@@ -45,14 +45,14 @@ async function uploadVisitPhotos(userId: string, visitId: string, photos: File[]
       upsert: false
     });
 
-    if (error) return { ok: false, message: `Photo upload failed: ${error.message}` };
+    if (error) return { ok: false, message: "Photo upload failed. Please remove the photo and try again." };
 
     rows.push({ storage_path: storagePath, user_id: userId, visit_id: visitId });
   }
 
   if (rows.length) {
     const { error } = await supabase.from("visit_photos").insert(rows as never);
-    if (error) return { ok: false, message: `Photo record could not be saved: ${error.message}` };
+    if (error) return { ok: false, message: "Photo upload could not be saved. Please try again." };
   }
 
   return { ok: true, message: "" };

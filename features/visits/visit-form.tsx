@@ -1,13 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, Save, Stamp } from "lucide-react";
-import { useState, useTransition } from "react";
+import { Camera, Save, Stamp, X } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { createVisit, updateVisit, type VisitActionResult } from "@/features/visits/actions";
 import { visitSchema, type VisitValues } from "@/schemas/visit";
 import type { PassportVisit } from "@/services/visits";
@@ -30,11 +31,24 @@ const moodOptions = [
 ];
 
 const maxPhotoBytes = 4 * 1024 * 1024;
+const photoSizeError = "This photo is too large. Please choose an image under 4 MB.";
+
+type SelectedPhoto = {
+  file: File;
+  id: string;
+  previewUrl: string;
+};
+
+function formatFileSize(size: number) {
+  if (size < 1024 * 1024) return `${Math.max(Math.round(size / 1024), 1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export function VisitForm({ mode, venue, visit }: VisitFormProps) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<VisitActionResult | null>(null);
-  const [photoLabel, setPhotoLabel] = useState("");
+  const [selectedPhotos, setSelectedPhotos] = useState<SelectedPhoto[]>([]);
+  const selectedPhotosRef = useRef<SelectedPhoto[]>([]);
   const {
     register,
     handleSubmit,
@@ -48,8 +62,44 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
       visitedOn: visit?.visited_on ?? new Date().toISOString().slice(0, 10)
     }
   });
+  const hasInvalidPhotos = selectedPhotos.some((photo) => photo.file.size > maxPhotoBytes || !photo.file.type.startsWith("image/"));
+
+  useEffect(() => {
+    selectedPhotosRef.current = selectedPhotos;
+  }, [selectedPhotos]);
+
+  useEffect(() => () => {
+    selectedPhotosRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
+  }, []);
+
+  function addSelectedPhotos(files: FileList | null) {
+    const nextPhotos = Array.from(files ?? []).filter((file) => file.type.startsWith("image/"));
+    if (!nextPhotos.length) return;
+    setResult(null);
+    setSelectedPhotos((current) => [
+      ...current,
+      ...nextPhotos.map((file) => ({
+        file,
+        id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+        previewUrl: URL.createObjectURL(file)
+      }))
+    ]);
+  }
+
+  function removeSelectedPhoto(photoId: string) {
+    setSelectedPhotos((current) => {
+      const photo = current.find((item) => item.id === photoId);
+      if (photo) URL.revokeObjectURL(photo.previewUrl);
+      return current.filter((item) => item.id !== photoId);
+    });
+  }
 
   function onSubmit(values: VisitValues) {
+    if (hasInvalidPhotos) {
+      setResult({ ok: false, message: photoSizeError });
+      return;
+    }
+
     startTransition(async () => {
       const formData = new FormData();
       formData.set("visitedOn", values.visitedOn);
@@ -57,15 +107,7 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
       formData.set("mood", values.mood ?? "");
       formData.set("privateNotes", values.privateNotes ?? "");
 
-      const photoInput = document.getElementById("visitPhotos") as HTMLInputElement | null;
-      const photos = Array.from(photoInput?.files ?? []);
-
-      if (photos.some((file) => file.size > maxPhotoBytes)) {
-        setResult({ ok: false, message: "Keep each visit photo under 4 MB." });
-        return;
-      }
-
-      photos.forEach((file) => formData.append("photos", file));
+      selectedPhotos.forEach((photo) => formData.append("photos", photo.file));
 
       const actionResult =
         mode === "create" && venue ? await createVisit(venue.id, venue.slug, formData) : visit ? await updateVisit(visit.id, formData) : { ok: false, message: "Visit details are missing." };
@@ -130,12 +172,43 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
           accept="image/*"
           multiple
           className="sr-only"
-          onChange={(event) => setPhotoLabel(event.target.files?.length ? `${event.target.files.length} photo(s) selected` : "")}
+          onChange={(event) => {
+            addSelectedPhotos(event.target.files);
+            event.currentTarget.value = "";
+          }}
         />
-        {photoLabel ? <p className="text-xs text-muted-foreground">{photoLabel}</p> : null}
+        {selectedPhotos.length ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {selectedPhotos.map((photo) => {
+              const isTooLarge = photo.file.size > maxPhotoBytes;
+
+              return (
+                <div key={photo.id} className={cn("grid gap-3 rounded-md border border-border bg-background/70 p-3 sm:grid-cols-[5rem_1fr_auto]", isTooLarge && "border-destructive/60 bg-destructive/10")}>
+                  <img src={photo.previewUrl} alt={`${photo.file.name} preview`} className="aspect-square w-full rounded-md object-cover sm:w-20" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{photo.file.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{formatFileSize(photo.file.size)}</p>
+                    {isTooLarge ? <p className="mt-2 text-sm text-destructive" role="alert">{photoSizeError}</p> : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold hover:bg-muted"
+                    onClick={() => removeSelectedPhoto(photo.id)}
+                    aria-label={`Remove ${photo.file.name}`}
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                    <span className="sm:sr-only">Remove</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Optional. Add images under 4 MB each.</p>
+        )}
       </div>
       {result ? <p className={result.ok ? "text-sm text-sage" : "text-sm text-destructive"} role="status">{result.message}</p> : null}
-      <Button type="submit" disabled={isPending}>
+      <Button type="submit" disabled={isPending || hasInvalidPhotos}>
         {mode === "create" ? <Stamp className="h-4 w-4" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
         {isPending ? "Saving..." : mode === "create" ? "Log visit" : "Save visit"}
       </Button>
