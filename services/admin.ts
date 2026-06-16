@@ -88,7 +88,12 @@ export type AuditLogFilters = {
 };
 export type AdminAuditLog = Tables<"audit_logs"> & {
   actor?: Pick<Tables<"profiles">, "display_name" | "id"> | null;
+  duplicateCandidate?: (Pick<Tables<"venue_duplicate_candidates">, "id" | "match_reasons" | "venue_a_id" | "venue_b_id"> & {
+    venueA?: Pick<Tables<"venues">, "city" | "country" | "id" | "name"> | null;
+    venueB?: Pick<Tables<"venues">, "city" | "country" | "id" | "name"> | null;
+  }) | null;
   venue?: Pick<Tables<"venues">, "city" | "country" | "id" | "name"> | null;
+  venueRefs: Record<string, Pick<Tables<"venues">, "city" | "country" | "id" | "name">>;
 };
 
 async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_claims" | "venue_bulk_operation_drafts" | "venue_duplicate_candidates" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
@@ -475,20 +480,44 @@ export async function listAuditLogs(filters: AuditLogFilters = {}) {
   const { data } = await query.order("created_at", { ascending: filters.order === "oldest" }).limit(100);
   const logs = (data ?? []) as Tables<"audit_logs">[];
   const actorIds = Array.from(new Set(logs.map((log) => log.actor_id).filter(Boolean))) as string[];
-  const venueIds = Array.from(new Set(logs.filter((log) => log.target_type === "venue").map((log) => log.target_id).filter(Boolean))) as string[];
+  const metadataVenueKeys = ["existingVenueId", "sourceVenueId", "targetVenueId", "venueId"];
+  const metadataVenueIds = logs.flatMap((log) => {
+    if (!log.metadata || typeof log.metadata !== "object" || Array.isArray(log.metadata)) return [];
+    const metadata = log.metadata as Record<string, unknown>;
+    return metadataVenueKeys.map((key) => metadata[key]).filter((value): value is string => typeof value === "string");
+  });
+  const venueIds = Array.from(new Set([
+    ...logs.filter((log) => log.target_type === "venue").map((log) => log.target_id).filter(Boolean),
+    ...metadataVenueIds
+  ])) as string[];
+  const duplicateCandidateIds = Array.from(new Set(logs
+    .filter((log) => log.target_type === "venue_duplicate_candidate" && log.target_id)
+    .map((log) => log.target_id))) as string[];
 
-  const [profilesResult, venuesResult] = await Promise.all([
+  const [profilesResult, venuesResult, duplicateCandidatesResult] = await Promise.all([
     actorIds.length ? supabase.from("profiles").select("id, display_name").in("id", actorIds) : Promise.resolve({ data: [] }),
-    venueIds.length ? supabase.from("venues").select("id, name, city, country").in("id", venueIds) : Promise.resolve({ data: [] })
+    venueIds.length ? supabase.from("venues").select("id, name, city, country").in("id", venueIds) : Promise.resolve({ data: [] }),
+    duplicateCandidateIds.length
+      ? supabase
+        .from("venue_duplicate_candidates")
+        .select("id, match_reasons, venue_a_id, venue_b_id, venueA:venues!venue_duplicate_candidates_venue_a_id_fkey(id, name, city, country), venueB:venues!venue_duplicate_candidates_venue_b_id_fkey(id, name, city, country)")
+        .in("id", duplicateCandidateIds)
+      : Promise.resolve({ data: [] })
   ]);
 
   const profilesById = new Map(((profilesResult.data ?? []) as Pick<Tables<"profiles">, "display_name" | "id">[]).map((profile) => [profile.id, profile]));
   const venuesById = new Map(((venuesResult.data ?? []) as Pick<Tables<"venues">, "city" | "country" | "id" | "name">[]).map((venue) => [venue.id, venue]));
+  const duplicateCandidatesById = new Map(((duplicateCandidatesResult.data ?? []) as Array<Pick<Tables<"venue_duplicate_candidates">, "id" | "match_reasons" | "venue_a_id" | "venue_b_id"> & {
+    venueA?: Pick<Tables<"venues">, "city" | "country" | "id" | "name"> | null;
+    venueB?: Pick<Tables<"venues">, "city" | "country" | "id" | "name"> | null;
+  }>).map((candidate) => [candidate.id, candidate]));
 
   return logs.map((log) => ({
     ...log,
     actor: log.actor_id ? profilesById.get(log.actor_id) ?? null : null,
-    venue: log.target_type === "venue" && log.target_id ? venuesById.get(log.target_id) ?? null : null
+    duplicateCandidate: log.target_type === "venue_duplicate_candidate" && log.target_id ? duplicateCandidatesById.get(log.target_id) ?? null : null,
+    venue: log.target_type === "venue" && log.target_id ? venuesById.get(log.target_id) ?? null : null,
+    venueRefs: Object.fromEntries([...venuesById.entries()])
   })) satisfies AdminAuditLog[];
 }
 

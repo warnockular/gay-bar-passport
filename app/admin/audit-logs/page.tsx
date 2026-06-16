@@ -1,3 +1,5 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,10 +23,10 @@ const actionLabels: Record<string, string> = {
   venue_claim_requested: "Venue ownership claim requested",
   venue_community_submitted: "Venue submitted by community member",
   venue_archived_after_merge: "Venue archived after merge",
-  venue_duplicate_candidate_dismissed: "Duplicate candidate dismissed",
-  venue_duplicate_candidate_merged: "Duplicate candidate merged",
+  venue_duplicate_candidate_dismissed: "Duplicate review dismissed",
+  venue_duplicate_candidate_merged: "Duplicate review marked merged",
   venue_duplicate_candidates_generated: "Duplicate candidates generated",
-  venue_duplicate_merged: "Duplicate venue merged",
+  venue_duplicate_merged: "Merged Duplicate Venue",
   venue_featured: "Venue marked as featured",
   venue_identity_changed: "Venue identity classification changed",
   venue_import_approved: "Staged venue approved",
@@ -95,13 +97,103 @@ function metadataEntries(metadata: Json) {
   return Object.entries(metadata).filter(([, value]) => value !== null && value !== undefined);
 }
 
+function venueLocation(venue?: { city?: string | null; country?: string | null } | null) {
+  return [venue?.city, venue?.country].filter(Boolean).join(", ");
+}
+
+function VenueReference({ venue }: { venue?: { city?: string | null; country?: string | null; id: string; name: string } | null }) {
+  if (!venue) return <span className="text-muted-foreground">Unknown venue</span>;
+  const location = venueLocation(venue);
+
+  return (
+    <span>
+      <Link className="font-semibold text-primary hover:underline" href={`/admin/venues/${venue.id}`}>{venue.name}</Link>
+      {location ? <span className="text-muted-foreground"> · {location}</span> : null}
+    </span>
+  );
+}
+
 function targetLabel(log: AdminAuditLog) {
+  if (log.target_type === "venue_duplicate_candidate" && log.duplicateCandidate) {
+    return (
+      <span>
+        Duplicate Review: <VenueReference venue={log.duplicateCandidate.venueA} /> <span className="text-muted-foreground">↔</span> <VenueReference venue={log.duplicateCandidate.venueB} />
+      </span>
+    );
+  }
+
   if (log.target_type === "venue" && log.venue) {
-    const location = [log.venue.city, log.venue.country].filter(Boolean).join(", ");
-    return location ? `${log.venue.name} · ${location}` : log.venue.name;
+    return <VenueReference venue={log.venue} />;
   }
 
   return log.target_id ? humanize(log.target_type) : "Platform";
+}
+
+function actorLabel(log: AdminAuditLog) {
+  if (!log.actor_id) return "System";
+  return log.actor?.display_name ?? "Unknown admin";
+}
+
+function formatTimestamp(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(value)).replace(" at ", " at ");
+}
+
+function isTechnicalKey(key: string) {
+  return key.toLowerCase().endsWith("id") || ["sourceVenueId", "targetVenueId", "mergeRecordId", "existingVenueId", "venueId"].includes(key);
+}
+
+function readableReason(value: unknown) {
+  if (!value) return null;
+  if (Array.isArray(value)) return value.map((item) => metadataValueLabel(item));
+  if (typeof value === "string") return value.split(",").map((part) => metadataValueLabel(part.trim())).filter(Boolean);
+  return [metadataValueLabel(value)];
+}
+
+function storyRows(log: AdminAuditLog) {
+  const metadata = metadataEntries(log.metadata);
+  const metadataObject = log.metadata && typeof log.metadata === "object" && !Array.isArray(log.metadata) ? log.metadata : {};
+  const sourceVenueId = typeof metadataObject.sourceVenueId === "string" ? metadataObject.sourceVenueId : null;
+  const targetVenueId = typeof metadataObject.targetVenueId === "string" ? metadataObject.targetVenueId : null;
+  const existingVenueId = typeof metadataObject.existingVenueId === "string" ? metadataObject.existingVenueId : null;
+  const venueId = typeof metadataObject.venueId === "string" ? metadataObject.venueId : null;
+  const rows: Array<{ label: string; value: ReactNode }> = [];
+
+  if (sourceVenueId) rows.push({ label: "Archived Venue", value: <VenueReference venue={log.venueRefs[sourceVenueId]} /> });
+  if (targetVenueId) rows.push({ label: "Kept Venue", value: <VenueReference venue={log.venueRefs[targetVenueId]} /> });
+  if (existingVenueId) rows.push({ label: "Existing Venue", value: <VenueReference venue={log.venueRefs[existingVenueId]} /> });
+  if (!sourceVenueId && !targetVenueId && venueId) rows.push({ label: "Venue", value: <VenueReference venue={log.venueRefs[venueId]} /> });
+  if (log.target_type === "venue" && log.venue && !rows.some((row) => row.label === "Venue")) rows.push({ label: "Venue", value: <VenueReference venue={log.venue} /> });
+  if (log.duplicateCandidate) {
+    rows.push({ label: "Duplicate Review", value: <><VenueReference venue={log.duplicateCandidate.venueA} /> <span className="text-muted-foreground">↔</span> <VenueReference venue={log.duplicateCandidate.venueB} /></> });
+    if (log.duplicateCandidate.match_reasons.length) {
+      rows.push({ label: "Match Reasons", value: log.duplicateCandidate.match_reasons.map((reason) => metadataValueLabel(reason)).join(", ") });
+    }
+  }
+
+  metadata.filter(([key]) => !isTechnicalKey(key)).forEach(([key, value]) => {
+    if (key === "reason") {
+      const reasons = readableReason(value);
+      if (reasons?.length) rows.push({ label: "Reason", value: reasons.join(", ") });
+      return;
+    }
+    rows.push({ label: metadataKeyLabel(key), value: metadataValueLabel(value) });
+  });
+
+  return rows;
+}
+
+function technicalRows(log: AdminAuditLog) {
+  const rows: Array<[string, unknown]> = [];
+  if (log.actor_id) rows.push(["Actor ID", log.actor_id]);
+  if (log.target_id) rows.push([`${humanize(log.target_type)} ID`, log.target_id]);
+  metadataEntries(log.metadata).filter(([key]) => isTechnicalKey(key)).forEach(([key, value]) => rows.push([metadataKeyLabel(key), value]));
+  return rows;
 }
 
 type AdminAuditLogsPageProps = {
@@ -165,7 +257,8 @@ export default async function AdminAuditLogsPage({ searchParams }: AdminAuditLog
 
       <div className="mt-6 space-y-4">
         {logs.length ? logs.map((log) => {
-          const metadata = metadataEntries(log.metadata);
+          const story = storyRows(log);
+          const technical = technicalRows(log);
 
           return (
             <Card key={log.id} className="bg-card/90 p-5">
@@ -178,33 +271,42 @@ export default async function AdminAuditLogsPage({ searchParams }: AdminAuditLog
                   <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
                     <div>
                       <dt className="font-medium text-foreground">Actor</dt>
-                      <dd className="mt-1 text-muted-foreground">
-                        {log.actor?.display_name ?? (log.actor_id ? "Unknown admin" : "System")}
-                        {log.actor_id ? <span className="block text-xs">ID: {log.actor_id}</span> : null}
-                      </dd>
+                      <dd className="mt-1 text-muted-foreground">{actorLabel(log)}</dd>
                     </div>
                     <div>
                       <dt className="font-medium text-foreground">Target</dt>
                       <dd className="mt-1 text-muted-foreground">
                         {targetLabel(log)}
-                        {log.target_id ? <span className="block break-all text-xs">ID: {log.target_id}</span> : null}
                       </dd>
                     </div>
                   </dl>
-                  {metadata.length ? (
+                  {story.length ? (
                     <dl className="mt-4 divide-y divide-border rounded-md border border-border bg-background/60">
-                      {metadata.map(([key, value]) => (
-                        <div key={key} className="grid gap-1 p-3 text-sm sm:grid-cols-[180px_1fr]">
-                          <dt className="font-medium text-foreground">{metadataKeyLabel(key)}</dt>
-                          <dd className="break-words text-muted-foreground">{metadataValueLabel(value)}</dd>
+                      {story.map((row) => (
+                        <div key={row.label} className="grid gap-1 p-3 text-sm sm:grid-cols-[180px_1fr]">
+                          <dt className="font-medium text-foreground">{row.label}</dt>
+                          <dd className="break-words text-muted-foreground">{row.value}</dd>
                         </div>
                       ))}
                     </dl>
                   ) : (
                     <p className="mt-4 rounded-md border border-border bg-background/60 p-3 text-sm text-muted-foreground">No extra details were recorded for this action.</p>
                   )}
+                  {technical.length ? (
+                    <details className="mt-4 rounded-md border border-border bg-background/50 p-3 text-sm">
+                      <summary className="cursor-pointer font-semibold text-muted-foreground">Show Technical Details</summary>
+                      <dl className="mt-3 space-y-2">
+                        {technical.map(([key, value]) => (
+                          <div key={`${log.id}-${key}`} className="grid gap-1 sm:grid-cols-[180px_1fr]">
+                            <dt className="font-medium text-foreground">{key}</dt>
+                            <dd className="break-all text-muted-foreground">{metadataValueLabel(value)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </details>
+                  ) : null}
                 </div>
-                <Badge>{new Date(log.created_at).toLocaleString()}</Badge>
+                <Badge>{formatTimestamp(log.created_at)}</Badge>
               </div>
             </Card>
           );
