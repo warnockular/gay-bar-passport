@@ -343,6 +343,21 @@ function websiteDomain(value?: string | null) {
   }
 }
 
+function normalizeAddress(value?: string | null) {
+  return normalizeMatchText(value)
+    .replace(/\bstreet\b/g, "st")
+    .replace(/\bavenue\b/g, "ave")
+    .replace(/\broad\b/g, "rd")
+    .replace(/\bboulevard\b/g, "blvd")
+    .replace(/\bdrive\b/g, "dr")
+    .replace(/\bwest\b/g, "w")
+    .replace(/\beast\b/g, "e")
+    .replace(/\bnorth\b/g, "n")
+    .replace(/\bsouth\b/g, "s")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function tokenSimilarity(first: string, second: string) {
   if (!first || !second) return 0;
   if (first === second) return 1;
@@ -385,17 +400,17 @@ function scoreDuplicatePair(first: DuplicateDetectionVenue, second: DuplicateDet
     reasons.push("similar_name");
   }
 
-  const firstAddress = normalizeMatchText(first.address);
-  const secondAddress = normalizeMatchText(second.address);
+  const firstAddress = normalizeAddress(first.address);
+  const secondAddress = normalizeAddress(second.address);
   if (firstAddress && secondAddress && firstAddress === secondAddress) {
-    score += 25;
+    score += 40;
     reasons.push("same_address");
   }
 
   const firstDomain = websiteDomain(first.website_url);
   const secondDomain = websiteDomain(second.website_url);
   if (firstDomain && secondDomain && firstDomain === secondDomain) {
-    score += 35;
+    score += 40;
     reasons.push("same_website");
   }
 
@@ -405,9 +420,10 @@ function scoreDuplicatePair(first: DuplicateDetectionVenue, second: DuplicateDet
     reasons.push("nearby_coordinates");
   }
 
+  const hasStrongSamePlaceSignal = sameCity && sameCountry && (reasons.includes("same_website") || reasons.includes("same_address"));
   if (!(sameCity && sameCountry) && !reasons.includes("same_website") && !reasons.includes("nearby_coordinates")) return null;
-  const confidenceScore = Math.min(score, 100);
-  if (confidenceScore < 60) return null;
+  const confidenceScore = Math.min(Math.max(score, hasStrongSamePlaceSignal ? 80 : score), 100);
+  if (confidenceScore < 60 && !hasStrongSamePlaceSignal) return null;
 
   const confidenceLevel: VenueDuplicateCandidateLevel = confidenceScore >= 95 ? "high" : confidenceScore >= 80 ? "medium" : "low";
   return { confidenceLevel, confidenceScore, reasons };
@@ -428,12 +444,16 @@ export async function generateVenueDuplicateCandidates() {
       .limit(1000),
     supabase
       .from("venue_duplicate_candidates")
-      .select("venue_a_id, venue_b_id")
+      .select("venue_a_id, venue_b_id, status")
       .limit(5000)
   ]);
 
   const venues = (venueRows ?? []) as DuplicateDetectionVenue[];
-  const existingPairs = new Set(((existingRows ?? []) as Array<Pick<Tables<"venue_duplicate_candidates">, "venue_a_id" | "venue_b_id">>)
+  const existingPairs = new Set(((existingRows ?? []) as Array<Pick<Tables<"venue_duplicate_candidates">, "status" | "venue_a_id" | "venue_b_id">>)
+    .filter((candidate) => candidate.status !== "pending")
+    .map((candidate) => duplicatePairKey(candidate.venue_a_id, candidate.venue_b_id)));
+  const pendingPairs = new Set(((existingRows ?? []) as Array<Pick<Tables<"venue_duplicate_candidates">, "status" | "venue_a_id" | "venue_b_id">>)
+    .filter((candidate) => candidate.status === "pending")
     .map((candidate) => duplicatePairKey(candidate.venue_a_id, candidate.venue_b_id)));
   const candidates: Array<Database["public"]["Tables"]["venue_duplicate_candidates"]["Insert"]> = [];
 
@@ -443,6 +463,7 @@ export async function generateVenueDuplicateCandidates() {
       const second = venues[secondIndex];
       const [venueAId, venueBId] = [first.id, second.id].sort();
       if (existingPairs.has(duplicatePairKey(venueAId, venueBId))) continue;
+      if (pendingPairs.has(duplicatePairKey(venueAId, venueBId))) continue;
 
       const score = scoreDuplicatePair(first, second);
       if (!score) continue;
