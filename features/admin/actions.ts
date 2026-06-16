@@ -108,6 +108,7 @@ export async function updateVenueStatus(venueId: string, status: VenueStatus, fe
   }
   await logAudit(admin.id, "venue_status_changed", "venue", venueId, { status });
   revalidatePath("/admin/venues");
+  revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
   redirectWithFeedback(feedbackPath, "review-status");
 }

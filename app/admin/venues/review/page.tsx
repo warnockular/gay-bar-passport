@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { updateVenueVerification } from "@/features/admin/actions";
+import { updateVenueStatus, updateVenueVerification } from "@/features/admin/actions";
+import { VenueImagePreview } from "@/features/venues/venue-image-preview";
+import { venueCategoryLabel } from "@/lib/venue-categories";
 import { listAdminVenueReviewQueue, type VenueQueueFilter, type VenueQueueSort } from "@/services/admin";
+import type { Tables } from "@/types/database";
 
 type AdminVenueReviewPageProps = {
   searchParams?: Promise<{ city?: string; filter?: string; sort?: string; updated?: string }>;
@@ -45,6 +48,20 @@ const verificationActions = [
   { label: "Mark Unverified", value: "unverified" }
 ] as const;
 
+function sourceLabel(venue: Tables<"venues">) {
+  if (venue.submission_status === "community_submitted") return "Community Submitted";
+  if (venue.submission_status === "owner_submitted") return "Owner Submitted";
+  if (venue.submission_status === "imported") return "Import";
+  return "Admin Created";
+}
+
+function missingDataSummary(missingData: string[]) {
+  if (!missingData.length) return "No tracked quality gaps.";
+  const visible = missingData.slice(0, 4).map(label).join(", ");
+  const remaining = missingData.length > 4 ? ` + ${missingData.length - 4} more` : "";
+  return `${visible}${remaining}`;
+}
+
 export default async function AdminVenueReviewPage({ searchParams }: AdminVenueReviewPageProps) {
   const params = await searchParams;
   const filter = isVenueQueueFilter(params?.filter) ? params.filter : "unverified";
@@ -59,6 +76,7 @@ export default async function AdminVenueReviewPage({ searchParams }: AdminVenueR
       <Badge>Venue Queue</Badge>
       <h1 className="mt-5 font-serif text-5xl font-semibold">Venue moderation queue.</h1>
       {params?.updated === "verification" ? <p className="mt-4 rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage" role="status">Venue verification updated.</p> : null}
+      {params?.updated === "review-status" ? <p className="mt-4 rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage" role="status">Venue review status updated.</p> : null}
       <div className="mt-5 flex flex-wrap gap-2">
         <Link href={`/admin/venues/review?filter=${filter}&sort=${sort}&city=montreal`} className={`rounded-md border border-border px-3 py-2 text-sm font-semibold ${cityFilter === "montreal" ? "bg-primary text-primary-foreground" : "bg-background/70 text-muted-foreground hover:text-primary"}`}>
           Montreal queue
@@ -86,42 +104,107 @@ export default async function AdminVenueReviewPage({ searchParams }: AdminVenueR
       <div className="mt-8 space-y-4">
         {venues.length ? (
           venues.map((venue) => (
-            <Card key={venue.id} className="bg-card/90 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <Link href={`/admin/venues/${venue.id}`} className="font-serif text-2xl font-semibold hover:text-primary">
-                    {venue.name}
-                  </Link>
-                  <p className="mt-1 text-sm text-muted-foreground">{venue.city}, {venue.country} · {venue.category}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge>{label(venue.verification_status)}</Badge>
-                    <Badge>{venue.verification_score}/100</Badge>
-                    <Badge>{label(venue.submission_status)}</Badge>
-                    <Badge>{label(venue.identity_classification)}</Badge>
-                    <Badge>{label(venue.review_status)}</Badge>
-                    <Badge>{label(venue.readiness_status)}</Badge>
-                    <Badge>{venue.completeness_score}/100 complete</Badge>
-                    {venue.featured ? <Badge>featured</Badge> : null}
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Source: {venue.source ? `${venue.source}${venue.source_id ? ` · ${venue.source_id}` : ""}` : "manual"} · Claim: {venue.claimed_by ? "claimed" : "unclaimed"}
-                  </p>
-                  {venue.missing_data.length ? <p className="mt-2 text-xs text-muted-foreground">Missing: {venue.missing_data.join(", ")}</p> : null}
+            <Card key={venue.id} className="overflow-hidden bg-card/90">
+              <div className="grid gap-0 lg:grid-cols-[11rem_1fr]">
+                <div className="border-b border-border bg-background/60 p-4 lg:border-b-0 lg:border-r">
+                  <VenueImagePreview imageUrl={venue.image_url} alt={`${venue.name} review image preview`} className="h-32 lg:h-full" mode="admin" />
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {verificationActions.map((action) => (
-                    <form key={action.value} action={updateVenueVerification.bind(null, venue.id, action.value, feedbackPath)}>
-                      <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">
-                        {action.label}
-                      </button>
-                    </form>
-                  ))}
+                <div className="grid gap-5 p-5 xl:grid-cols-[1fr_18rem]">
+                  <div className="space-y-5">
+                    <section>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Venue Summary</p>
+                          <Link href={`/admin/venues/${venue.id}`} className="mt-2 block font-serif text-2xl font-semibold leading-tight hover:text-primary sm:text-3xl">
+                            {venue.name}
+                          </Link>
+                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                            {[venue.neighborhood, venue.city, venue.region, venue.country].filter(Boolean).join(", ")}
+                          </p>
+                        </div>
+                        <Badge>{venueCategoryLabel(venue.category)}</Badge>
+                      </div>
+                      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-md border border-border bg-background/70 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Source</p>
+                          <p className="mt-1 font-semibold">{sourceLabel(venue)}</p>
+                        </div>
+                        <div className="rounded-md border border-border bg-background/70 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Review</p>
+                          <p className="mt-1 font-semibold">{label(venue.review_status)}</p>
+                        </div>
+                        <div className="rounded-md border border-border bg-background/70 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Verification</p>
+                          <p className="mt-1 font-semibold">{label(venue.verification_status)}</p>
+                        </div>
+                        <div className="rounded-md border border-border bg-background/70 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Complete</p>
+                          <p className="mt-1 font-semibold">{venue.completeness_score}/100</p>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="rounded-md border border-border bg-background/70 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Quality / Missing Data</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Badge>{label(venue.readiness_status)}</Badge>
+                        <Badge>{venue.verification_score}/100 trust score</Badge>
+                        {venue.featured ? <Badge>Featured</Badge> : null}
+                        {venue.claimed_by ? <Badge>Owner linked</Badge> : <Badge>Unclaimed</Badge>}
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground">{missingDataSummary(venue.missing_data)}</p>
+                    </section>
+                  </div>
+
+                  <section className="rounded-md border border-border bg-background/70 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Moderation Actions</p>
+                    <div className="mt-4 grid gap-2">
+                      <Link href={`/admin/venues/${venue.id}`} className="rounded-md bg-primary px-3 py-2 text-center text-sm font-semibold text-primary-foreground hover:opacity-90">
+                        Review Venue
+                      </Link>
+                      <Link href={`/admin/venues/${venue.id}`} className="rounded-md border border-border bg-card px-3 py-2 text-center text-sm font-semibold hover:bg-muted">
+                        Edit Venue
+                      </Link>
+                      <form action={updateVenueVerification.bind(null, venue.id, "admin_verified", feedbackPath)}>
+                        <button className="w-full rounded-md border border-border bg-card px-3 py-2 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                          Mark Admin Verified
+                        </button>
+                      </form>
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                        <form action={updateVenueStatus.bind(null, venue.id, "active", feedbackPath)}>
+                          <button className="w-full rounded-md border border-border bg-card px-3 py-2 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                            Publish / Make Active
+                          </button>
+                        </form>
+                        <form action={updateVenueStatus.bind(null, venue.id, "pending_review", feedbackPath)}>
+                          <button className="w-full rounded-md border border-border bg-card px-3 py-2 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                            Hide / Needs Review
+                          </button>
+                        </form>
+                      </div>
+                      <details className="rounded-md border border-border bg-card p-3">
+                        <summary className="cursor-pointer text-sm font-semibold">More verification options</summary>
+                        <div className="mt-3 grid gap-2">
+                          {verificationActions.filter((action) => action.value !== "admin_verified").map((action) => (
+                            <form key={action.value} action={updateVenueVerification.bind(null, venue.id, action.value, feedbackPath)}>
+                              <button className="w-full rounded-md border border-border bg-background/70 px-3 py-2 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                                {action.label}
+                              </button>
+                            </form>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  </section>
                 </div>
               </div>
             </Card>
           ))
         ) : (
-          <Card className="bg-card/90 p-6 text-sm text-muted-foreground">No venues match this queue view.</Card>
+          <Card className="bg-card/90 p-6">
+            <p className="font-semibold">No venues need review for this filter.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Try another queue filter, clear the city filter, or return to all venues.</p>
+          </Card>
         )}
       </div>
     </div>
