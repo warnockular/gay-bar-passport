@@ -116,7 +116,7 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
             <div className="mt-2 space-y-1 text-sm">
               {venue.address ? <p>{venue.address}</p> : null}
               {venue.neighborhood ? <p className="text-muted-foreground">{venue.neighborhood}</p> : null}
-              <p className="text-muted-foreground">{venue.city}, {venue.country}</p>
+              <p className="text-muted-foreground">{[venue.city, venue.region, venue.country].filter(Boolean).join(", ")}</p>
             </div>
           </div>
           {venue.latitude && venue.longitude ? (

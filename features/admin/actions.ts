@@ -138,6 +138,7 @@ export async function updateVenueMetadata(venueId: string, formData: FormData) {
       opening_hours: String(formData.get("openingHours") ?? ""),
       name: String(formData.get("name") ?? ""),
       neighborhood: String(formData.get("neighborhood") ?? ""),
+      region: String(formData.get("region") ?? "") || null,
       website_url: String(formData.get("websiteUrl") ?? "")
     } as never)
     .eq("id", venueId);

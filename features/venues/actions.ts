@@ -45,6 +45,7 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     imageUrl: formData.get("imageUrl"),
     name: formData.get("name"),
     neighborhood: formData.get("neighborhood"),
+    region: formData.get("region"),
     websiteUrl: formData.get("websiteUrl")
   };
   const values = Object.fromEntries(Object.entries(rawValues).map(([key, value]) => [key, String(value ?? "")])) as Record<keyof VenueSubmissionValues, string>;
@@ -75,7 +76,7 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
   }
 
   const { data: savedVenue, error } = await supabase.from("venues").insert({
-    address: parsed.data.address,
+    address: parsed.data.address || null,
     category: parsed.data.category,
     city: parsed.data.city,
     city_slug: slugify(parsed.data.city),
@@ -91,6 +92,7 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
     is_published: false,
     name: parsed.data.name,
     neighborhood: parsed.data.neighborhood || null,
+    region: parsed.data.region || null,
     review_status: "pending_review",
     reviewed_at: null,
     reviewed_by: null,
@@ -113,7 +115,7 @@ export async function submitCommunityVenue(formData: FormData): Promise<VenueSub
   const { error: auditError } = await supabase.from("audit_logs").insert({
     action: "venue_community_submitted",
     actor_id: user.id,
-    metadata: { city: parsed.data.city, country: parsed.data.country, name: parsed.data.name },
+    metadata: { city: parsed.data.city, country: parsed.data.country, name: parsed.data.name, region: parsed.data.region || null },
     target_id: venueId,
     target_type: "venue"
   } as never);

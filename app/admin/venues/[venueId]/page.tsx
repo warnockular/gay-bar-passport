@@ -141,6 +141,9 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
                   <Field label="City">
                     <input name="city" defaultValue={venue.city} className={InputClass()} />
                   </Field>
+                  <Field label="State / Province / Territory">
+                    <input name="region" defaultValue={venue.region ?? ""} className={InputClass()} />
+                  </Field>
                   <Field label="Country">
                     <input name="country" defaultValue={venue.country} className={InputClass()} />
                   </Field>
