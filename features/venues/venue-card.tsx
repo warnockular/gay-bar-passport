@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FavoriteButton } from "@/features/venues/favorite-button";
 import { cn } from "@/lib/utils";
+import { venueCategoryLabel } from "@/lib/venue-categories";
 import type { VenueWithTags } from "@/services/venues";
 
 type VenueCardProps = {
@@ -50,7 +51,7 @@ export function VenueCard({ favoriteIds = [], isSignedIn = false, venue }: Venue
             <FavoriteButton venueId={venue.id} initialIsFavorite={favoriteIds.includes(venue.id)} isSignedIn={isSignedIn} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge>{venue.category}</Badge>
+            <Badge>{venueCategoryLabel(venue.category)}</Badge>
             {venue.tags.map((tag) => (
               <Link key={tag.slug} href={`/venues?tag=${tag.slug}`}>
                 <Badge className="normal-case tracking-normal">{tag.name}</Badge>

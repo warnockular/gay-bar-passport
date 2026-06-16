@@ -14,6 +14,7 @@ import {
 } from "@/features/admin/actions";
 import { VenueImagePreview } from "@/features/venues/venue-image-preview";
 import { travelerTagOptions, travelerTagSlugs } from "@/lib/traveler-tags";
+import { venueCategoryOptions } from "@/lib/venue-categories";
 import { getAdminVenue, listAdminVenueTags, listVenueClaimsForVenue } from "@/services/admin";
 import type { Tables } from "@/types/database";
 
@@ -24,7 +25,6 @@ type AdminVenuePageProps = {
 
 type Venue = Tables<"venues">;
 
-const categoryOptions: Venue["category"][] = ["bar", "club", "lounge", "cafe", "performance", "community"];
 const reviewStatusOptions: Venue["review_status"][] = ["active", "hidden", "pending_review"];
 const verificationOptions: Array<{ label: string; score: number; value: Venue["verification_status"] }> = [
   { label: "Unverified", score: 0, value: "unverified" },
@@ -124,7 +124,7 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
                   </Field>
                   <Field label="Type">
                     <select name="category" defaultValue={venue.category} className={InputClass()}>
-                      {categoryOptions.map((category) => <option key={category} value={category}>{label(category)}</option>)}
+                      {venueCategoryOptions.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
                     </select>
                   </Field>
                   <Field label="Website">

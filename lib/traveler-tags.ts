@@ -10,6 +10,7 @@ export const travelerTagOptions = [
   { name: "Outdoor space", slug: "outdoor-space" },
   { name: "Food", slug: "food" },
   { name: "Live music", slug: "live-music" },
+  { name: "Men-only", slug: "men-only" },
   { name: "Community", slug: "community" }
 ] as const;
 

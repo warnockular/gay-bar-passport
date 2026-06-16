@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { VenueCard } from "@/features/venues/venue-card";
+import { venueCategoryLabel } from "@/lib/venue-categories";
 import type { VenueTag, VenueWithTags } from "@/services/venues";
 import type { Enums } from "@/types/database";
 
@@ -53,7 +54,7 @@ export function VenueDirectory({
             <option value="">All types</option>
             {categories.map((category) => (
               <option key={category} value={category}>
-                {category}
+                {venueCategoryLabel(category)}
               </option>
             ))}
           </select>

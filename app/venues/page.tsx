@@ -5,10 +5,11 @@ import { buttonVariants } from "@/components/ui/button";
 import { VenueDirectory } from "@/features/venues/venue-directory";
 import { getCurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { venueCategoryValues } from "@/lib/venue-categories";
 import { listCountries, listFavoriteVenueIds, listPublishedVenues, listTags } from "@/services/venues";
 import type { Enums } from "@/types/database";
 
-const categories: Enums<"venue_category">[] = ["bar", "club", "lounge", "cafe", "performance", "community"];
+const categories = venueCategoryValues;
 
 export const metadata: Metadata = {
   title: "LGBTQ+ Venue Directory | Gay Bar Passport",

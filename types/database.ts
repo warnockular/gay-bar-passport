@@ -1299,7 +1299,7 @@ export type Database = {
       venue_claim_status: "pending" | "approved" | "rejected" | "cancelled";
       venue_identity_classification: "lgbtq_venue" | "lgbtq_friendly" | "historic_site" | "community_recommended";
       venue_bulk_operation_type: "bulk_verification" | "bulk_classification" | "bulk_feature";
-      venue_category: "bar" | "club" | "lounge" | "cafe" | "performance" | "community";
+      venue_category: "bar" | "club" | "lounge" | "cafe" | "performance" | "community" | "strip_club";
       venue_readiness_status: "incomplete" | "review_ready" | "publish_ready" | "featured_ready";
       venue_submission_status: "imported" | "community_submitted" | "owner_submitted" | "admin_created";
       venue_verification_status: "unverified" | "community_verified" | "owner_verified" | "admin_verified";

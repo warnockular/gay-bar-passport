@@ -8,16 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { submitCommunityVenue, type VenueSubmissionResult } from "@/features/venues/actions";
 import { countryOptions, getCityOptions, getCountryOption, getNeighborhoodOptions } from "@/lib/location-options";
-import type { Enums } from "@/types/database";
-
-const categories: Array<{ label: string; value: Enums<"venue_category"> }> = [
-  { label: "Bar", value: "bar" },
-  { label: "Club", value: "club" },
-  { label: "Lounge", value: "lounge" },
-  { label: "Cafe", value: "cafe" },
-  { label: "Performance", value: "performance" },
-  { label: "Community", value: "community" }
-];
+import { venueCategoryOptions } from "@/lib/venue-categories";
 const initialValues = {
   address: "",
   category: "bar",
@@ -85,7 +76,7 @@ export function VenueSubmissionForm() {
         <div className="space-y-2">
           <Label htmlFor="category">Type</Label>
           <select id="category" name="category" value={values.category} onChange={(event) => updateValue("category", event.target.value)} className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            {categories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+            {venueCategoryOptions.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
           </select>
         </div>
       </div>
