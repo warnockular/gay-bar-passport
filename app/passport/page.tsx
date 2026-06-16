@@ -2,15 +2,14 @@ import { ConfigurationCallout } from "@/components/auth/configuration-callout";
 import type { Metadata } from "next";
 import { PassportStamp } from "@/components/landing/passport-stamp";
 import { PageShell } from "@/components/layout/page-shell";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PassportVisitCard } from "@/features/visits/passport-visit-card";
 import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { listPassportVisits, listUserAchievements } from "@/services/visits";
-import { CalendarDays, Camera, Pencil, Star, Trophy } from "lucide-react";
-import Image from "next/image";
+import { Trophy } from "lucide-react";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -56,52 +55,7 @@ export default async function PassportPage() {
           <div className="space-y-5">
             {visits.length ? (
               visits.map((visit) => (
-                <Card key={visit.id} className="overflow-hidden bg-card/90">
-                  <div className="grid gap-0 md:grid-cols-[14rem_1fr]">
-                    {visit.venue?.image_url ? (
-                      <div className="relative min-h-52">
-                        <Image src={visit.venue.image_url} alt={`${visit.venue.name} venue`} fill className="object-cover" sizes="14rem" />
-                      </div>
-                    ) : null}
-                    <div className="space-y-4 p-5">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <Badge>{visit.venue?.category ?? "visit"}</Badge>
-                          <h2 className="mt-3 font-serif text-3xl font-semibold">{visit.venue?.name ?? "Venue visit"}</h2>
-                          <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                            <CalendarDays className="h-4 w-4 text-terracotta" aria-hidden="true" />
-                            {visit.visited_on} · {visit.venue?.city}, {visit.venue?.country}
-                          </p>
-                        </div>
-                        <Link className={cn(buttonVariants({ variant: "outline", size: "sm" }))} href={`/visits/${visit.id}/edit`}>
-                          <Pencil className="h-4 w-4" aria-hidden="true" />
-                          Edit
-                        </Link>
-                      </div>
-                      <p className="flex items-center gap-2 text-sm font-semibold">
-                        <Star className="h-4 w-4 fill-current text-burnt" aria-hidden="true" />
-                        {visit.rating ?? 0} / 5
-                      </p>
-                      {visit.private_notes ? <p className="rounded-md border border-border/80 bg-background/60 p-4 text-sm leading-6 text-muted-foreground">{visit.private_notes}</p> : null}
-                      {visit.photos.length ? (
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          {visit.photos.map((photo) =>
-                            photo.signedUrl ? (
-                              <div key={photo.id} className="relative aspect-[4/3] overflow-hidden rounded-md border border-border">
-                                <Image src={photo.signedUrl} alt={`${visit.venue?.name ?? "Visit"} photo`} fill className="object-cover" sizes="12rem" />
-                              </div>
-                            ) : null
-                          )}
-                        </div>
-                      ) : (
-                        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Camera className="h-4 w-4" aria-hidden="true" />
-                          No photos attached yet.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </Card>
+                <PassportVisitCard key={visit.id} visit={visit} />
               ))
             ) : (
               <Card className="bg-card/90 p-6">
