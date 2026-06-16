@@ -16,7 +16,7 @@ export const venueSubmissionSchema = z.object({
   if (!values.address && !values.neighborhood) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Enter an address or neighborhood.",
+      message: "Add either a street address or neighborhood.",
       path: ["address"]
     });
   }

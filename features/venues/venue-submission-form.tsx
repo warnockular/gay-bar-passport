@@ -122,16 +122,16 @@ export function VenueSubmissionForm() {
           {fieldError(result, "city") ? <p className="text-sm text-destructive">{fieldError(result, "city")}</p> : null}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="neighborhood">Neighborhood optional</Label>
+          <Label htmlFor="neighborhood">Neighborhood</Label>
           <Input id="neighborhood" name="neighborhood" value={values.neighborhood} onChange={(event) => updateValue("neighborhood", event.target.value)} aria-invalid={Boolean(fieldError(result, "neighborhood"))} />
-          <p className="text-xs text-muted-foreground">Helpful for NYC, Montreal, and other neighborhood-driven browsing.</p>
+          <p className="text-xs text-muted-foreground">Optional, but required if no street address is provided. Helpful for NYC, Montreal, and other neighborhood-driven browsing.</p>
           {fieldError(result, "neighborhood") ? <p className="text-sm text-destructive">{fieldError(result, "neighborhood")}</p> : null}
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="address">Address optional if neighborhood is provided</Label>
+        <Label htmlFor="address">Address</Label>
         <Input id="address" name="address" value={values.address} onChange={(event) => updateValue("address", event.target.value)} aria-invalid={Boolean(fieldError(result, "address"))} />
-        <p className="text-xs text-muted-foreground">Use the street address when available. If not, add the neighborhood below.</p>
+        <p className="text-xs text-muted-foreground">Optional if you provide a neighborhood below.</p>
         {fieldError(result, "address") ? <p className="text-sm text-destructive">{fieldError(result, "address")}</p> : null}
       </div>
       <div className="grid gap-5 md:grid-cols-2">
