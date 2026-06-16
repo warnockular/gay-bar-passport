@@ -1,0 +1,18 @@
+export const travelerTagOptions = [
+  { name: "Dancing", slug: "dancing" },
+  { name: "Late night", slug: "late-night" },
+  { name: "Cocktails", slug: "cocktails" },
+  { name: "Quiet conversation", slug: "quiet-conversation" },
+  { name: "LGBTQ+ owned", slug: "lgbtq-owned" },
+  { name: "Drag", slug: "drag" },
+  { name: "Leather", slug: "leather" },
+  { name: "Bear", slug: "bear" },
+  { name: "Outdoor space", slug: "outdoor-space" },
+  { name: "Food", slug: "food" },
+  { name: "Live music", slug: "live-music" },
+  { name: "Community", slug: "community" }
+] as const;
+
+export type TravelerTagSlug = (typeof travelerTagOptions)[number]["slug"];
+
+export const travelerTagSlugs = travelerTagOptions.map((tag) => tag.slug);

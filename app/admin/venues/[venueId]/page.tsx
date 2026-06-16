@@ -8,11 +8,13 @@ import {
   updateVenueMetadata,
   updateVenueSource,
   updateVenueStatus,
+  updateVenueTravelerTags,
   updateVenueVerification,
   reviewVenueClaim
 } from "@/features/admin/actions";
 import { VenueImagePreview } from "@/features/venues/venue-image-preview";
-import { getAdminVenue, listVenueClaimsForVenue } from "@/services/admin";
+import { travelerTagOptions, travelerTagSlugs } from "@/lib/traveler-tags";
+import { getAdminVenue, listAdminVenueTags, listVenueClaimsForVenue } from "@/services/admin";
 import type { Tables } from "@/types/database";
 
 type AdminVenuePageProps = {
@@ -81,12 +83,15 @@ function InputClass() {
 export default async function AdminVenuePage({ params, searchParams }: AdminVenuePageProps) {
   const { venueId } = await params;
   const { error, updated } = (await searchParams) ?? {};
-  const [venue, claims] = await Promise.all([getAdminVenue(venueId), listVenueClaimsForVenue(venueId)]);
+  const [venue, claims, venueTags] = await Promise.all([getAdminVenue(venueId), listVenueClaimsForVenue(venueId), listAdminVenueTags(venueId)]);
   if (!venue) notFound();
 
   const feedbackPath = `/admin/venues/${venue.id}`;
   const isFeaturedReady = venue.readiness_status === "featured_ready";
   const pendingClaims = claims.filter((claim) => claim.status === "pending");
+  const assignedTagSlugs = new Set(venueTags.map((tag) => tag.slug));
+  const managedTagSlugs = new Set<string>(travelerTagSlugs);
+  const unmanagedTags = venueTags.filter((tag) => !managedTagSlugs.has(tag.slug));
 
   return (
     <div className="space-y-6">
@@ -188,7 +193,55 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
           </Card>
 
           <Card className="bg-card/90 p-6">
+            <h2 className="font-serif text-3xl font-semibold">Traveler Tags</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              These describe the experience travelers can expect and appear on public venue cards.
+            </p>
+            <div className="mt-5">
+              <p className="text-sm font-semibold">Currently assigned</p>
+              {venueTags.length ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {venueTags.map((tag) => <Badge key={tag.id}>{tag.name}</Badge>)}
+                </div>
+              ) : (
+                <p className="mt-3 rounded-md border border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                  No traveler tags are assigned yet.
+                </p>
+              )}
+            </div>
+            <form action={updateVenueTravelerTags.bind(null, venue.id)} className="mt-6 space-y-5">
+              <input type="hidden" name="feedbackPath" value={feedbackPath} />
+              <input type="hidden" name="publicPath" value={`/venues/${venue.slug}`} />
+              <fieldset>
+                <legend className="text-sm font-semibold">Managed traveler tags</legend>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {travelerTagOptions.map((tag) => (
+                    <label key={tag.slug} className="flex items-center gap-3 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold">
+                      <input
+                        type="checkbox"
+                        name="tagSlugs"
+                        value={tag.slug}
+                        defaultChecked={assignedTagSlugs.has(tag.slug)}
+                        className="h-4 w-4 rounded border-input text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      />
+                      <span>{tag.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {unmanagedTags.length ? (
+                <p className="rounded-md border border-border bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
+                  Existing legacy tags are preserved separately: {unmanagedTags.map((tag) => tag.name).join(", ")}.
+                </p>
+              ) : null}
+              <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">Save traveler tags</button>
+              <StatusMessage updated={updated} section="traveler-tags" />
+            </form>
+          </Card>
+
+          <Card className="bg-card/90 p-6">
             <h2 className="font-serif text-3xl font-semibold">Verification</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">This describes trust level.</p>
             <p className="mt-2 text-sm text-muted-foreground">Current: {label(venue.verification_status)} · {venue.verification_score}/100</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {verificationOptions.map((option) => (
@@ -205,6 +258,7 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
 
           <Card className="bg-card/90 p-6">
             <h2 className="font-serif text-3xl font-semibold">Identity Classification</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">This describes the venue&apos;s LGBTQ+ relationship or cultural role.</p>
             <p className="mt-2 text-sm text-muted-foreground">Current: {label(venue.identity_classification)}</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {identityOptions.map((option) => (
@@ -218,6 +272,7 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
 
           <Card className="bg-card/90 p-6">
             <h2 className="font-serif text-3xl font-semibold">Featured / Publishing Controls</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">This controls public visibility and featured status.</p>
             <p className="mt-2 text-sm text-muted-foreground">
               Current: {venue.featured ? `Featured ${venue.featured_at ?? ""}` : "Not featured"} · Readiness: {label(venue.readiness_status)}
             </p>

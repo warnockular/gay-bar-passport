@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdminProfile } from "@/lib/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { travelerTagOptions, travelerTagSlugs } from "@/lib/traveler-tags";
 import type { Database, Tables } from "@/types/database";
 
 type ProfileRole = Tables<"profiles">["role"];
@@ -205,6 +206,67 @@ export async function updateVenueIdentityClassification(venueId: string, classif
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
   redirectWithFeedback(feedbackPath, "identity");
+}
+
+export async function updateVenueTravelerTags(venueId: string, formData: FormData) {
+  const admin = await requireAdminProfile();
+  const feedbackPath = String(formData.get("feedbackPath") ?? "");
+  const publicPath = String(formData.get("publicPath") ?? "");
+  const selectedSlugs = Array.from(new Set(formData.getAll("tagSlugs").map(String)))
+    .filter((slug) => travelerTagSlugs.includes(slug as never));
+  const supabase = await createSupabaseServerClient();
+
+  const { error: tagError } = await supabase
+    .from("tags")
+    .upsert(travelerTagOptions.map((tag) => ({ name: tag.name, slug: tag.slug })) as never, { onConflict: "slug" });
+  if (tagError) {
+    redirectWithError(feedbackPath, tagError.message);
+    return;
+  }
+
+  const { data: controlledTags, error: controlledTagsError } = await supabase
+    .from("tags")
+    .select("id, slug")
+    .in("slug", travelerTagSlugs);
+  if (controlledTagsError) {
+    redirectWithError(feedbackPath, controlledTagsError.message);
+    return;
+  }
+
+  const controlledTagRows = (controlledTags ?? []) as Array<Pick<Tables<"tags">, "id" | "slug">>;
+  const controlledTagIds = controlledTagRows.map((tag) => tag.id);
+  const selectedTagIds = controlledTagRows.filter((tag) => selectedSlugs.includes(tag.slug)).map((tag) => tag.id);
+
+  if (controlledTagIds.length) {
+    const { error: deleteError } = await supabase
+      .from("venue_tags")
+      .delete()
+      .eq("venue_id", venueId)
+      .in("tag_id", controlledTagIds);
+    if (deleteError) {
+      redirectWithError(feedbackPath, deleteError.message);
+      return;
+    }
+  }
+
+  if (selectedTagIds.length) {
+    const { error: insertError } = await supabase
+      .from("venue_tags")
+      .insert(selectedTagIds.map((tagId) => ({ tag_id: tagId, venue_id: venueId })) as never);
+    if (insertError) {
+      redirectWithError(feedbackPath, insertError.message);
+      return;
+    }
+  }
+
+  await logAudit(admin.id, "venue_traveler_tags_updated", "venue", venueId, {
+    tagSlugs: selectedSlugs.join(", ")
+  });
+  revalidatePath("/venues");
+  revalidatePath("/admin/venues");
+  revalidatePath(`/admin/venues/${venueId}`);
+  if (publicPath.startsWith("/venues/")) revalidatePath(publicPath);
+  redirectWithFeedback(feedbackPath, "traveler-tags");
 }
 
 export async function updateVenueFeatured(venueId: string, featured: boolean, feedbackPath?: string) {

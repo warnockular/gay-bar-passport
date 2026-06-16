@@ -38,6 +38,7 @@ const actionLabels: Record<string, string> = {
   venue_readiness_recalculated: "Venue readiness recalculated",
   venue_source_changed: "Venue source details changed",
   venue_status_changed: "Venue review status changed",
+  venue_traveler_tags_updated: "Venue traveler tags updated",
   venue_unfeatured: "Venue removed from featured",
   venue_verification_changed: "Venue verification changed"
 };

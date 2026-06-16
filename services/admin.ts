@@ -37,6 +37,7 @@ export type AdminSummary = {
 
 export type AdminProfile = Tables<"profiles">;
 export type AdminVenue = Tables<"venues">;
+export type AdminVenueTag = Pick<Tables<"tags">, "id" | "name" | "slug">;
 export type AdminImportBatch = Tables<"import_batches">;
 export type AdminBulkOperationDraft = Tables<"venue_bulk_operation_drafts">;
 export type AdminStagedVenue = Tables<"venue_import_staging"> & {
@@ -295,6 +296,19 @@ export async function listVenueClaimsForVenue(venueId: string) {
 export async function getAdminVenue(venueId: string) {
   const venues = await listAdminVenues();
   return venues.find((venue) => venue.id === venueId) ?? null;
+}
+
+export async function listAdminVenueTags(venueId: string): Promise<AdminVenueTag[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("venue_tags")
+    .select("tags(id, name, slug)")
+    .eq("venue_id", venueId);
+
+  return ((data ?? []) as Array<{ tags?: AdminVenueTag | null }>)
+    .map((row) => row.tags)
+    .filter((tag): tag is AdminVenueTag => Boolean(tag))
+    .sort((first, second) => first.name.localeCompare(second.name));
 }
 
 export async function listDuplicateCandidates() {
