@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { submitCommunityVenue, type VenueSubmissionResult } from "@/features/venues/actions";
-import { countryOptions, getCountryOption } from "@/lib/location-options";
+import { countryOptions, getCityOptions, getCountryOption, getNeighborhoodOptions } from "@/lib/location-options";
 import type { Enums } from "@/types/database";
 
 const categories: Array<{ label: string; value: Enums<"venue_category"> }> = [
@@ -30,6 +30,8 @@ const initialValues = {
   region: "",
   websiteUrl: ""
 };
+const cityNotListedValue = "__city_not_listed__";
+const neighborhoodNotListedValue = "__neighborhood_not_listed__";
 
 function fieldError(result: VenueSubmissionResult | null, name: keyof NonNullable<VenueSubmissionResult["fieldErrors"]>) {
   return result?.fieldErrors?.[name]?.[0];
@@ -39,13 +41,16 @@ export function VenueSubmissionForm() {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<VenueSubmissionResult | null>(null);
   const [values, setValues] = useState(initialValues);
+  const [useCustomCity, setUseCustomCity] = useState(false);
+  const [useCustomNeighborhood, setUseCustomNeighborhood] = useState(false);
 
   function updateValue(name: keyof typeof initialValues, value: string) {
     setValues((current) => ({ ...current, [name]: value }));
   }
   const selectedCountry = getCountryOption(values.country);
   const regions = selectedCountry?.regions ?? [];
-  const citySuggestions = selectedCountry?.cities ?? [];
+  const cityOptions = getCityOptions(values.country, values.region);
+  const neighborhoodOptions = getNeighborhoodOptions(values.city);
 
   function submit(formData: FormData) {
     startTransition(async () => {
@@ -53,8 +58,18 @@ export function VenueSubmissionForm() {
       setResult(actionResult);
       if (actionResult.ok) {
         setValues(initialValues);
+        setUseCustomCity(false);
+        setUseCustomNeighborhood(false);
       } else if (actionResult.values) {
         setValues((current) => ({ ...current, ...actionResult.values }));
+        const submittedCountry = actionResult.values.country ?? values.country;
+        const submittedRegion = actionResult.values.region ?? values.region;
+        const submittedCity = actionResult.values.city ?? "";
+        const submittedNeighborhood = actionResult.values.neighborhood ?? "";
+        const submittedCityOptions = getCityOptions(submittedCountry, submittedRegion);
+        const submittedNeighborhoodOptions = getNeighborhoodOptions(submittedCity);
+        setUseCustomCity(Boolean(submittedCity) && submittedCityOptions.length > 0 && !submittedCityOptions.includes(submittedCity));
+        setUseCustomNeighborhood(Boolean(submittedNeighborhood) && submittedNeighborhoodOptions.length > 0 && !submittedNeighborhoodOptions.includes(submittedNeighborhood));
       }
     });
   }
@@ -81,7 +96,11 @@ export function VenueSubmissionForm() {
             id="country"
             name="country"
             value={values.country}
-            onChange={(event) => setValues((current) => ({ ...current, country: event.target.value, region: "" }))}
+            onChange={(event) => {
+              setUseCustomCity(false);
+              setUseCustomNeighborhood(false);
+              setValues((current) => ({ ...current, city: "", country: event.target.value, neighborhood: "", region: "" }));
+            }}
             className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-invalid={Boolean(fieldError(result, "country"))}
           >
@@ -96,7 +115,11 @@ export function VenueSubmissionForm() {
               id="region"
               name="region"
               value={values.region}
-              onChange={(event) => updateValue("region", event.target.value)}
+              onChange={(event) => {
+                setUseCustomCity(false);
+                setUseCustomNeighborhood(false);
+                setValues((current) => ({ ...current, city: "", neighborhood: "", region: event.target.value }));
+              }}
               className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-invalid={Boolean(fieldError(result, "region"))}
             >
@@ -112,26 +135,69 @@ export function VenueSubmissionForm() {
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="city">City</Label>
-          <Input id="city" name="city" list={citySuggestions.length ? "city-suggestions" : undefined} value={values.city} onChange={(event) => updateValue("city", event.target.value)} aria-invalid={Boolean(fieldError(result, "city"))} />
-          {citySuggestions.length ? (
-            <datalist id="city-suggestions">
-              {citySuggestions.map((city) => <option key={city} value={city} />)}
-            </datalist>
+          {cityOptions.length && !useCustomCity ? (
+            <select
+              id="city"
+              name="city"
+              value={values.city}
+              onChange={(event) => {
+                if (event.target.value === cityNotListedValue) {
+                  setUseCustomCity(true);
+                  setUseCustomNeighborhood(false);
+                  setValues((current) => ({ ...current, city: "", neighborhood: "" }));
+                  return;
+                }
+                setUseCustomNeighborhood(false);
+                setValues((current) => ({ ...current, city: event.target.value, neighborhood: "" }));
+              }}
+              className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-invalid={Boolean(fieldError(result, "city"))}
+            >
+              <option value="">Choose a city</option>
+              {cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}
+              <option value={cityNotListedValue}>City not listed</option>
+            </select>
+          ) : null}
+          {useCustomCity || !cityOptions.length ? (
+            <Input id="city" name="city" placeholder="Enter city or town" value={values.city} onChange={(event) => updateValue("city", event.target.value)} aria-invalid={Boolean(fieldError(result, "city"))} />
           ) : null}
           <p className="text-xs text-muted-foreground">Use the city that matches the selected country and region.</p>
           {fieldError(result, "city") ? <p className="text-sm text-destructive">{fieldError(result, "city")}</p> : null}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="neighborhood">Neighborhood</Label>
-          <Input id="neighborhood" name="neighborhood" value={values.neighborhood} onChange={(event) => updateValue("neighborhood", event.target.value)} aria-invalid={Boolean(fieldError(result, "neighborhood"))} />
+          <Label htmlFor="neighborhood">Neighborhood (optional)</Label>
+          {neighborhoodOptions.length && !useCustomNeighborhood ? (
+            <select
+              id="neighborhood"
+              name="neighborhood"
+              value={values.neighborhood}
+              onChange={(event) => {
+                if (event.target.value === neighborhoodNotListedValue) {
+                  setUseCustomNeighborhood(true);
+                  updateValue("neighborhood", "");
+                  return;
+                }
+                updateValue("neighborhood", event.target.value);
+              }}
+              className="h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-invalid={Boolean(fieldError(result, "neighborhood"))}
+            >
+              <option value="">Choose a neighborhood</option>
+              {neighborhoodOptions.map((neighborhood) => <option key={neighborhood} value={neighborhood}>{neighborhood}</option>)}
+              <option value={neighborhoodNotListedValue}>Neighborhood not listed</option>
+            </select>
+          ) : null}
+          {useCustomNeighborhood || !neighborhoodOptions.length ? (
+            <Input id="neighborhood" name="neighborhood" placeholder={neighborhoodOptions.length ? "Enter neighborhood" : undefined} value={values.neighborhood} onChange={(event) => updateValue("neighborhood", event.target.value)} aria-invalid={Boolean(fieldError(result, "neighborhood"))} />
+          ) : null}
           <p className="text-xs text-muted-foreground">Optional, but required if no street address is provided. Helpful for NYC, Montreal, and other neighborhood-driven browsing.</p>
           {fieldError(result, "neighborhood") ? <p className="text-sm text-destructive">{fieldError(result, "neighborhood")}</p> : null}
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="address">Address</Label>
+        <Label htmlFor="address">Address (optional if neighborhood is provided)</Label>
         <Input id="address" name="address" value={values.address} onChange={(event) => updateValue("address", event.target.value)} aria-invalid={Boolean(fieldError(result, "address"))} />
-        <p className="text-xs text-muted-foreground">Optional if you provide a neighborhood below.</p>
+        <p className="text-xs text-muted-foreground">Use the street address when available.</p>
         {fieldError(result, "address") ? <p className="text-sm text-destructive">{fieldError(result, "address")}</p> : null}
       </div>
       <div className="grid gap-5 md:grid-cols-2">

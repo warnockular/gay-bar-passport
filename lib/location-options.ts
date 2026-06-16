@@ -5,6 +5,37 @@ export type CountryOption = {
   regions?: string[];
 };
 
+export const cityOptionsByCountryRegion: Record<string, Record<string, string[]>> = {
+  Canada: {
+    "British Columbia": ["Vancouver", "Victoria", "Kelowna"],
+    Ontario: ["Toronto", "Ottawa", "Hamilton", "London"],
+    Quebec: ["Montreal", "Quebec City", "Gatineau", "Sherbrooke"]
+  },
+  "United States": {
+    California: ["Los Angeles", "San Francisco", "San Diego", "Palm Springs", "Oakland", "Sacramento"],
+    "District of Columbia": ["Washington"],
+    Florida: ["Miami", "Fort Lauderdale", "Orlando", "Tampa", "Key West"],
+    Illinois: ["Chicago", "Springfield", "Evanston"],
+    "New York": ["New York City", "Albany", "Syracuse", "Yonkers", "Fire Island", "Rochester", "Buffalo"]
+  }
+};
+
+export const neighborhoodOptionsByCity: Record<string, string[]> = {
+  "New York City": [
+    "Hell's Kitchen",
+    "West Village",
+    "East Village",
+    "Chelsea",
+    "Harlem",
+    "Williamsburg",
+    "Bushwick",
+    "Jackson Heights",
+    "Astoria",
+    "Fire Island Pines",
+    "Cherry Grove"
+  ]
+};
+
 export const countryOptions: CountryOption[] = [
   {
     cities: ["New York", "Los Angeles", "San Francisco", "Chicago", "Washington"],
@@ -45,4 +76,12 @@ export function getCountryOption(country: string) {
 
 export function countryHasConfiguredRegions(country: string) {
   return Boolean(getCountryOption(country)?.regions?.length);
+}
+
+export function getCityOptions(country: string, region: string) {
+  return cityOptionsByCountryRegion[country]?.[region] ?? getCountryOption(country)?.cities ?? [];
+}
+
+export function getNeighborhoodOptions(city: string) {
+  return neighborhoodOptionsByCity[city] ?? [];
 }
