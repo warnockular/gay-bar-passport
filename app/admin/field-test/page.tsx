@@ -57,7 +57,7 @@ export default async function AdminFieldTestPage() {
         <Card className="bg-card/90 p-5">
           <h2 className="font-serif text-2xl font-semibold">Quick links</h2>
           <div className="mt-4 grid gap-2 text-sm font-semibold">
-            <Link className="rounded-md border border-border bg-background/70 px-3 py-2 hover:bg-muted" href="/countries/canada/montreal">Public Montreal city route</Link>
+            <Link className="rounded-md border border-border bg-background/70 px-3 py-2 hover:bg-muted" href="/venues?country=canada&q=Montreal">Public Montreal venue search</Link>
             <Link className="rounded-md border border-border bg-background/70 px-3 py-2 hover:bg-muted" href="/admin/venues?city=montreal">Admin Montreal venues</Link>
             <Link className="rounded-md border border-border bg-background/70 px-3 py-2 hover:bg-muted" href="/admin/venues/review?city=montreal">Montreal review queue</Link>
             <Link className="rounded-md border border-border bg-background/70 px-3 py-2 hover:bg-muted" href="/admin/audit-logs?action=venue_community_submitted">Submission audit logs</Link>
