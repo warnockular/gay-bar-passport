@@ -129,6 +129,7 @@ function ResultPanel({ venue }: { venue: AdminVenue }) {
         <VenueImagePreview venue={venue} />
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
           <Field label="Name" value={venue.name} />
+          <Field label="Type" value={label(venue.category)} />
           <Field label="Address" value={venue.address} />
           <Field label="Neighborhood" value={venue.neighborhood} />
           <Field label="City / Country" value={`${venue.city}, ${venue.country}`} />
