@@ -21,6 +21,7 @@ export const cityOptionsByCountryRegion: Record<string, Record<string, string[]>
 };
 
 export const neighborhoodOptionsByCity: Record<string, string[]> = {
+  Montreal: ["Gay Village", "Le Village", "Plateau-Mont-Royal", "Mile End", "Old Montreal", "Griffintown"],
   "New York City": [
     "Hell's Kitchen",
     "West Village",

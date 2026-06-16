@@ -15,7 +15,8 @@ const baseDesktopRoutes: AppRoute[] = [
   { href: "/feed", label: "Feed" },
   { href: "/users", label: "Users" },
   { href: "/analytics", label: "Analytics" },
-  { href: "/dashboard", label: "Dashboard" }
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "mailto:?subject=Gay%20Bar%20Passport%20Montreal%20Test%20Feedback", label: "Feedback" }
 ];
 
 export async function SiteHeader() {
@@ -32,6 +33,7 @@ export async function SiteHeader() {
     { href: "/users", label: "Users" },
     { href: "/analytics", label: "Analytics" },
     { href: "/profile", label: "Profile" },
+    { href: "mailto:?subject=Gay%20Bar%20Passport%20Montreal%20Test%20Feedback", label: "Feedback" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])
   ];
 

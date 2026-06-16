@@ -5,7 +5,7 @@ import { updateVenueVerification } from "@/features/admin/actions";
 import { listAdminVenueReviewQueue, type VenueQueueFilter, type VenueQueueSort } from "@/services/admin";
 
 type AdminVenueReviewPageProps = {
-  searchParams?: Promise<{ filter?: string; sort?: string; updated?: string }>;
+  searchParams?: Promise<{ city?: string; filter?: string; sort?: string; updated?: string }>;
 };
 
 const filters: Array<{ label: string; value: VenueQueueFilter }> = [
@@ -49,24 +49,36 @@ export default async function AdminVenueReviewPage({ searchParams }: AdminVenueR
   const params = await searchParams;
   const filter = isVenueQueueFilter(params?.filter) ? params.filter : "unverified";
   const sort = isVenueQueueSort(params?.sort) ? params.sort : "newest";
-  const venues = await listAdminVenueReviewQueue(filter, sort);
-  const feedbackPath = `/admin/venues/review?filter=${filter}&sort=${sort}`;
+  const cityFilter = params?.city?.toLowerCase();
+  const venues = (await listAdminVenueReviewQueue(filter, sort)).filter((venue) => cityFilter ? venue.city.toLowerCase() === cityFilter || venue.region?.toLowerCase() === cityFilter : true);
+  const cityQuery = cityFilter ? `&city=${cityFilter}` : "";
+  const feedbackPath = `/admin/venues/review?filter=${filter}&sort=${sort}${cityQuery}`;
 
   return (
     <div>
       <Badge>Venue Queue</Badge>
       <h1 className="mt-5 font-serif text-5xl font-semibold">Venue moderation queue.</h1>
       {params?.updated === "verification" ? <p className="mt-4 rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage" role="status">Venue verification updated.</p> : null}
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Link href={`/admin/venues/review?filter=${filter}&sort=${sort}&city=montreal`} className={`rounded-md border border-border px-3 py-2 text-sm font-semibold ${cityFilter === "montreal" ? "bg-primary text-primary-foreground" : "bg-background/70 text-muted-foreground hover:text-primary"}`}>
+          Montreal queue
+        </Link>
+        {cityFilter ? (
+          <Link href={`/admin/venues/review?filter=${filter}&sort=${sort}`} className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-primary">
+            Clear city filter
+          </Link>
+        ) : null}
+      </div>
       <div className="mt-6 flex flex-wrap gap-2">
         {filters.map((item) => (
-          <Link key={item.value} href={`/admin/venues/review?filter=${item.value}&sort=${sort}`} className={`rounded-md border border-border px-3 py-2 text-sm font-semibold ${filter === item.value ? "bg-primary text-primary-foreground" : "bg-background/70 text-muted-foreground hover:text-primary"}`}>
+          <Link key={item.value} href={`/admin/venues/review?filter=${item.value}&sort=${sort}${cityQuery}`} className={`rounded-md border border-border px-3 py-2 text-sm font-semibold ${filter === item.value ? "bg-primary text-primary-foreground" : "bg-background/70 text-muted-foreground hover:text-primary"}`}>
             {item.label}
           </Link>
         ))}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {sorts.map((item) => (
-          <Link key={item.value} href={`/admin/venues/review?filter=${filter}&sort=${item.value}`} className={`rounded-md border border-border px-3 py-2 text-xs font-semibold ${sort === item.value ? "bg-muted text-foreground" : "bg-background/70 text-muted-foreground hover:text-primary"}`}>
+          <Link key={item.value} href={`/admin/venues/review?filter=${filter}&sort=${item.value}${cityQuery}`} className={`rounded-md border border-border px-3 py-2 text-xs font-semibold ${sort === item.value ? "bg-muted text-foreground" : "bg-background/70 text-muted-foreground hover:text-primary"}`}>
             Sort: {item.label}
           </Link>
         ))}

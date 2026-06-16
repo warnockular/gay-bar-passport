@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 
 const adminRoutes = [
   { href: "/admin", label: "Dashboard" },
+  { href: "/admin/field-test", label: "Field Test" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/venues", label: "Venues" },
   { href: "/admin/venues/review", label: "Venue Queue" },

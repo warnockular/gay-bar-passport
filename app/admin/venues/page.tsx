@@ -4,6 +4,10 @@ import { Card } from "@/components/ui/card";
 import { createBulkOperationDraft, createModerationFlag, updateVenueStatus } from "@/features/admin/actions";
 import { listAdminVenues, listBulkOperationDrafts } from "@/services/admin";
 
+type AdminVenuesPageProps = {
+  searchParams?: Promise<{ city?: string }>;
+};
+
 function label(value: string) {
   return value
     .split("_")
@@ -11,16 +15,29 @@ function label(value: string) {
     .join(" ");
 }
 
-export default async function AdminVenuesPage() {
+export default async function AdminVenuesPage({ searchParams }: AdminVenuesPageProps) {
+  const params = await searchParams;
+  const cityFilter = params?.city?.toLowerCase();
   const [venues, bulkDrafts] = await Promise.all([listAdminVenues(), listBulkOperationDrafts()]);
+  const visibleVenues = cityFilter ? venues.filter((venue) => venue.city.toLowerCase() === cityFilter || venue.region?.toLowerCase() === cityFilter) : venues;
 
   return (
     <div>
       <Badge>Venues</Badge>
       <h1 className="mt-5 font-serif text-5xl font-semibold">Venue review.</h1>
-      <Link href="/admin/venues/review" className="mt-4 inline-block rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold text-primary hover:bg-muted">
-        Open venue moderation queue
-      </Link>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link href="/admin/venues/review" className="inline-block rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold text-primary hover:bg-muted">
+          Open venue moderation queue
+        </Link>
+        <Link href="/admin/venues?city=montreal" className="inline-block rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold text-primary hover:bg-muted">
+          Montreal venues
+        </Link>
+        {cityFilter ? (
+          <Link href="/admin/venues" className="inline-block rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted">
+            Clear city filter
+          </Link>
+        ) : null}
+      </div>
       <Card className="mt-6 bg-card/90 p-5">
         <h2 className="font-serif text-2xl font-semibold">Bulk operations foundation</h2>
         <p className="mt-2 text-sm text-muted-foreground">Draft placeholders only. No bulk changes run in Phase 11E.</p>
@@ -33,8 +50,9 @@ export default async function AdminVenuesPage() {
         </div>
         <p className="mt-3 text-xs text-muted-foreground">{bulkDrafts.length} draft placeholder(s) recorded.</p>
       </Card>
+      {cityFilter ? <p className="mt-5 rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage">Showing venues matching {cityFilter}.</p> : null}
       <div className="mt-8 space-y-4">
-        {venues.map((venue) => (
+        {visibleVenues.map((venue) => (
           <Card key={venue.id} className="bg-card/90 p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -68,6 +86,7 @@ export default async function AdminVenuesPage() {
             </div>
           </Card>
         ))}
+        {!visibleVenues.length ? <Card className="bg-card/90 p-6 text-sm text-muted-foreground">No venues match this city filter.</Card> : null}
       </div>
     </div>
   );
