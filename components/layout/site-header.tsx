@@ -12,10 +12,6 @@ const baseDesktopRoutes: AppRoute[] = [
   { href: "/venues", label: "Venues" },
   { href: "/passport", label: "Passport" },
   { href: "/journal", label: "Journal" },
-  { href: "/feed", label: "Feed" },
-  { href: "/users", label: "Users" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/dashboard", label: "Dashboard" },
   { href: "mailto:?subject=Gay%20Bar%20Passport%20Montreal%20Test%20Feedback", label: "Feedback" }
 ];
 
@@ -29,11 +25,8 @@ export async function SiteHeader() {
     { href: "/venues", label: "Venues" },
     { href: "/passport", label: "Passport" },
     { href: "/journal", label: "Journal" },
-    { href: "/feed", label: "Feed" },
-    { href: "/users", label: "Users" },
-    { href: "/analytics", label: "Analytics" },
-    { href: "/profile", label: "Profile" },
     { href: "mailto:?subject=Gay%20Bar%20Passport%20Montreal%20Test%20Feedback", label: "Feedback" },
+    { href: "/profile", label: "Profile" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])
   ];
 
@@ -46,7 +39,7 @@ export async function SiteHeader() {
           </span>
           <span className="truncate font-serif text-xl font-semibold tracking-normal sm:text-2xl">Gay Bar Passport</span>
         </Link>
-        <nav aria-label="Primary" className="hidden items-center gap-4 text-sm font-medium text-muted-foreground lg:gap-6 md:flex">
+        <nav aria-label="Primary" className="hidden items-center gap-3 text-sm font-medium text-muted-foreground lg:gap-5 md:flex">
           {desktopRoutes.map((route) => (
             <Link key={route.href} href={route.href} className="shrink-0 rounded-md px-1 py-2 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {route.label}
