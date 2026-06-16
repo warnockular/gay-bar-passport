@@ -1,9 +1,12 @@
-import Image from "next/image";
+"use client";
+
 import Link from "next/link";
 import { MapPin, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FavoriteButton } from "@/features/venues/favorite-button";
+import { cn } from "@/lib/utils";
 import type { VenueWithTags } from "@/services/venues";
 
 type VenueCardProps = {
@@ -13,12 +16,18 @@ type VenueCardProps = {
 };
 
 export function VenueCard({ favoriteIds = [], isSignedIn = false, venue }: VenueCardProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(venue.image_url) && !imageFailed;
+
   return (
     <Card className="overflow-hidden bg-card/90">
-      <div className="grid gap-0 md:grid-cols-[240px_1fr]">
-        {venue.image_url ? (
+      <div className={cn("grid gap-0", showImage && "md:grid-cols-[240px_1fr]")}>
+        {showImage ? (
           <Link href={`/venues/${venue.slug}`} className="relative block h-56 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-64 md:h-full">
-            <Image src={venue.image_url} alt={`${venue.name} venue preview`} fill className="object-cover" sizes="(min-width: 768px) 240px, 100vw" />
+            <span className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.72),rgba(255,255,255,0.28))] p-5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={venue.image_url ?? ""} alt={`${venue.name} venue preview`} className="max-h-full max-w-full object-contain" onError={() => setImageFailed(true)} />
+            </span>
           </Link>
         ) : null}
         <div className="space-y-4 p-5">
