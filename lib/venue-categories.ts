@@ -7,7 +7,11 @@ export const venueCategoryOptions: Array<{ label: string; value: Enums<"venue_ca
   { label: "Cafe", value: "cafe" },
   { label: "Performance", value: "performance" },
   { label: "Community", value: "community" },
-  { label: "Strip Club", value: "strip_club" }
+  { label: "Strip Club", value: "strip_club" },
+  { label: "Restaurant", value: "restaurant" },
+  { label: "Bathhouse / Sauna", value: "bathhouse_sauna" },
+  { label: "Retail / Bookstore", value: "retail_bookstore" },
+  { label: "Cultural / Historic Site", value: "cultural_historic_site" }
 ];
 
 // Future: move venue types and traveler tags into admin-only taxonomy management.

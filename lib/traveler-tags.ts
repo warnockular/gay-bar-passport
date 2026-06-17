@@ -11,6 +11,12 @@ export const travelerTagOptions = [
   { name: "Food", slug: "food" },
   { name: "Live music", slug: "live-music" },
   { name: "Men-only", slug: "men-only" },
+  { name: "Karaoke", slug: "karaoke" },
+  { name: "Dance Floor", slug: "dance-floor" },
+  { name: "Patio", slug: "patio" },
+  { name: "Happy Hour", slug: "happy-hour" },
+  { name: "Tourist Friendly", slug: "tourist-friendly" },
+  { name: "Accessible Entrance", slug: "accessible-entrance" },
   { name: "Community", slug: "community" }
 ] as const;
 
