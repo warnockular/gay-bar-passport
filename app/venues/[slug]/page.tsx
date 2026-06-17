@@ -1,26 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Clock, ExternalLink, MapPin, ShieldCheck, Stamp } from "lucide-react";
+import { Clock, ExternalLink, MapPinned, MapPin, Navigation, ShieldCheck, Stamp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FavoriteButton } from "@/features/venues/favorite-button";
 import { VenueImagePreview } from "@/features/venues/venue-image-preview";
+import { VenueShareButton } from "@/features/venues/venue-share-button";
 import { getCurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { venueCategoryLabel } from "@/lib/venue-categories";
 import { getVenueBySlug, listFavoriteVenueIds } from "@/services/venues";
 
 type VenueDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
-
-function label(value: string) {
-  return value
-    .split("_")
-    .map((part) => (part.toLowerCase() === "lgbtq" ? "LGBTQ" : part.slice(0, 1).toUpperCase() + part.slice(1)))
-    .join(" ");
-}
 
 function verificationMessage(status: string, claimedBy?: string | null) {
   if (claimedBy) return "Owner linked";
@@ -28,6 +23,20 @@ function verificationMessage(status: string, claimedBy?: string | null) {
   if (status === "owner_verified") return "Owner Verified";
   if (status === "community_verified") return "Community Verified";
   return "Not Yet Verified";
+}
+
+function directionsUrl(venue: NonNullable<Awaited<ReturnType<typeof getVenueBySlug>>>) {
+  if (venue.latitude !== null && venue.longitude !== null) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venue.latitude},${venue.longitude}`)}`;
+  }
+
+  const hasAddress = Boolean(venue.address?.trim());
+  const addressQuery = [venue.address, venue.city, venue.region, venue.country]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(", ");
+  if (!hasAddress || !addressQuery) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`;
 }
 
 export async function generateMetadata({ params }: VenueDetailPageProps): Promise<Metadata> {
@@ -50,28 +59,32 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
 
   const user = await getCurrentUser();
   const favoriteIds = await listFavoriteVenueIds(user?.id);
+  const directions = directionsUrl(venue);
+  const locationLabel = [venue.neighborhood, venue.city, venue.region, venue.country].filter(Boolean).join(", ");
 
   return (
     <section className="container py-10 md:py-16">
       <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-6">
-          <VenueImagePreview imageUrl={venue.image_url} alt={`${venue.name} travel preview`} className="h-[26rem]" />
-          <div>
+          <VenueImagePreview imageUrl={venue.image_url} alt={`${venue.name} travel preview`} className="h-72 sm:h-96 lg:h-[26rem]" />
+          <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <Badge>{label(venue.category)}</Badge>
+              <Badge>{venueCategoryLabel(venue.category)}</Badge>
               <Badge>{verificationMessage(venue.verification_status, venue.claimed_by)}</Badge>
+              {venue.tags.map((tag) => (
+                <Link key={tag.slug} href={`/venues?tag=${tag.slug}`}>
+                  <Badge className="normal-case tracking-normal">{tag.name}</Badge>
+                </Link>
+              ))}
             </div>
-            <h1 className="mt-4 font-serif text-5xl font-semibold">{venue.name}</h1>
-            <p className="mt-3 flex items-center gap-2 text-muted-foreground">
-              <MapPin className="h-4 w-4 text-rose" aria-hidden="true" />
-              {venue.neighborhood ? `${venue.neighborhood}, ` : ""}
-              <Link className="hover:text-primary" href={`/countries/${venue.country_slug}/${venue.city_slug}`}>
-                {venue.city}
-              </Link>
-              <span>,</span>
-              <Link className="hover:text-primary" href={`/countries/${venue.country_slug}`}>
-                {venue.country}
-              </Link>
+            <h1 className="font-serif text-4xl font-semibold leading-tight sm:text-5xl">{venue.name}</h1>
+            <p className="flex flex-wrap items-center gap-2 text-muted-foreground">
+              <MapPin className="h-4 w-4 shrink-0 text-rose" aria-hidden="true" />
+              {venue.neighborhood ? <span>{venue.neighborhood}</span> : null}
+              {venue.neighborhood ? <span aria-hidden="true">·</span> : null}
+              <Link className="hover:text-primary" href={`/countries/${venue.country_slug}/${venue.city_slug}`}>{venue.city}</Link>
+              {venue.region ? <span>{venue.region}</span> : null}
+              <Link className="hover:text-primary" href={`/countries/${venue.country_slug}`}>{venue.country}</Link>
             </p>
           </div>
           <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{venue.description}</p>
@@ -84,24 +97,58 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
               </div>
             </div>
           ) : null}
-          <div className="flex flex-wrap gap-2">
-            {venue.tags.map((tag) => (
-              <Link key={tag.slug} href={`/venues?tag=${tag.slug}`}>
-                <Badge className="normal-case tracking-normal">{tag.name}</Badge>
-              </Link>
-            ))}
-          </div>
+          <Card className="bg-card/90 p-5">
+            <div className="flex items-start gap-3">
+              <MapPinned className="mt-1 h-5 w-5 text-sage" aria-hidden="true" />
+              <div>
+                <h2 className="font-serif text-2xl font-semibold">Location</h2>
+                <div className="mt-3 space-y-1 text-sm leading-6">
+                  {venue.address ? <p>{venue.address}</p> : null}
+                  {venue.neighborhood ? <p className="text-muted-foreground">{venue.neighborhood}</p> : null}
+                  <p className="text-muted-foreground">{[venue.city, venue.region, venue.country].filter(Boolean).join(", ")}</p>
+                </div>
+                {directions ? (
+                  <a className={cn(buttonVariants({ variant: "secondary" }), "mt-4")} href={directions} target="_blank" rel="noreferrer">
+                    <Navigation className="h-4 w-4" aria-hidden="true" />
+                    Get Directions
+                  </a>
+                ) : null}
+                {venue.latitude !== null && venue.longitude !== null ? (
+                  <p className="mt-3 text-xs text-muted-foreground">Coordinates available for map handoff.</p>
+                ) : null}
+              </div>
+            </div>
+          </Card>
         </div>
-        <Card className="h-fit space-y-5 bg-card/90 p-5">
-          <FavoriteButton venueId={venue.id} initialIsFavorite={favoriteIds.includes(venue.id)} isSignedIn={Boolean(user)} />
-          <Link className={cn(buttonVariants({ variant: "secondary" }), "w-full")} href={user ? `/venues/${venue.slug}/log-visit` : `/auth/sign-in?next=${encodeURIComponent(`/venues/${venue.slug}/log-visit`)}`}>
-            <Stamp className="h-4 w-4" aria-hidden="true" />
-            Log visit
-          </Link>
-          <Link className={cn(buttonVariants({ variant: "outline" }), "w-full")} href={user ? `/venues/${venue.slug}/claim` : `/auth/sign-in?next=${encodeURIComponent(`/venues/${venue.slug}/claim`)}`}>
-            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-            Claim this venue
-          </Link>
+        <Card className="h-fit space-y-5 bg-card/90 p-5 lg:sticky lg:top-24">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Traveler Actions</p>
+            <p className="mt-2 text-sm text-muted-foreground">{locationLabel}</p>
+          </div>
+          <div className="grid gap-3">
+            <FavoriteButton buttonClassName="w-full" venueId={venue.id} initialIsFavorite={favoriteIds.includes(venue.id)} isSignedIn={Boolean(user)} />
+            <Link className={cn(buttonVariants({ variant: "secondary" }), "w-full")} href={user ? `/venues/${venue.slug}/log-visit` : `/auth/sign-in?next=${encodeURIComponent(`/venues/${venue.slug}/log-visit`)}`}>
+              <Stamp className="h-4 w-4" aria-hidden="true" />
+              Log visit
+            </Link>
+            {venue.website_url ? (
+              <a className={cn(buttonVariants(), "w-full")} href={venue.website_url} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                Visit Website
+              </a>
+            ) : null}
+            {directions ? (
+              <a className={cn(buttonVariants({ variant: "outline" }), "w-full")} href={directions} target="_blank" rel="noreferrer">
+                <Navigation className="h-4 w-4" aria-hidden="true" />
+                Get Directions
+              </a>
+            ) : null}
+            <VenueShareButton path={`/venues/${venue.slug}`} title={`${venue.name} | Gay Bar Passport`} />
+            <Link className={cn(buttonVariants({ variant: "outline" }), "w-full")} href={user ? `/venues/${venue.slug}/claim` : `/auth/sign-in?next=${encodeURIComponent(`/venues/${venue.slug}/claim`)}`}>
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              Claim this venue
+            </Link>
+          </div>
           <div className="rounded-md border border-border bg-background/70 p-3">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Verification</p>
             <p className="mt-2 text-sm font-semibold">
@@ -119,19 +166,13 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
               <p className="text-muted-foreground">{[venue.city, venue.region, venue.country].filter(Boolean).join(", ")}</p>
             </div>
           </div>
-          {venue.latitude && venue.longitude ? (
+          {venue.latitude !== null && venue.longitude !== null ? (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Coordinates</p>
-              <p className="mt-2 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Map data</p>
+              <p className="mt-2 text-xs text-muted-foreground">
                 {venue.latitude}, {venue.longitude}
               </p>
             </div>
-          ) : null}
-          {venue.website_url ? (
-            <a className={cn(buttonVariants(), "w-full")} href={venue.website_url} target="_blank" rel="noreferrer">
-              <ExternalLink className="h-4 w-4" aria-hidden="true" />
-              Visit website
-            </a>
           ) : null}
         </Card>
       </div>

@@ -8,12 +8,13 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type FavoriteButtonProps = {
+  buttonClassName?: string;
   initialIsFavorite: boolean;
   isSignedIn: boolean;
   venueId: string;
 };
 
-export function FavoriteButton({ initialIsFavorite, isSignedIn, venueId }: FavoriteButtonProps) {
+export function FavoriteButton({ buttonClassName, initialIsFavorite, isSignedIn, venueId }: FavoriteButtonProps) {
   const router = useRouter();
   const [isFavorite, setIsFavorite] = useState(initialIsFavorite);
   const [message, setMessage] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export function FavoriteButton({ initialIsFavorite, isSignedIn, venueId }: Favor
 
   return (
     <div className="space-y-2">
-      <Button type="button" variant={isFavorite ? "default" : "outline"} onClick={toggleFavorite} disabled={isPending}>
+      <Button className={buttonClassName} type="button" variant={isFavorite ? "default" : "outline"} onClick={toggleFavorite} disabled={isPending}>
         <Heart className={isFavorite ? "h-4 w-4 fill-current" : "h-4 w-4"} aria-hidden="true" />
         {isFavorite ? "Favorited" : "Favorite"}
       </Button>
