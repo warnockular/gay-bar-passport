@@ -12,6 +12,11 @@ type AdminVenueReviewPageProps = {
 };
 
 const filters: Array<{ label: string; value: VenueQueueFilter }> = [
+  { label: "Pending Review", value: "pending_review" },
+  { label: "Active", value: "active" },
+  { label: "Needs Review", value: "needs_review" },
+  { label: "Archived", value: "archived" },
+  { label: "Rejected", value: "rejected" },
   { label: "Unverified", value: "unverified" },
   { label: "Community submitted", value: "community_submitted" },
   { label: "Owner submitted", value: "owner_submitted" },
@@ -48,6 +53,14 @@ const verificationActions = [
   { label: "Mark Unverified", value: "unverified" }
 ] as const;
 
+function moderationStatus(venue: Tables<"venues">) {
+  if (venue.archived_at || venue.review_status === "archived") return "Archived";
+  if (venue.review_status === "rejected") return "Rejected";
+  if (venue.review_status === "needs_review" || venue.review_status === "hidden") return "Needs Review";
+  if (venue.review_status === "pending_review") return "Pending Review";
+  return "Active";
+}
+
 function sourceLabel(venue: Tables<"venues">) {
   if (venue.submission_status === "community_submitted") return "Community Submitted";
   if (venue.submission_status === "owner_submitted") return "Owner Submitted";
@@ -64,7 +77,7 @@ function missingDataSummary(missingData: string[]) {
 
 export default async function AdminVenueReviewPage({ searchParams }: AdminVenueReviewPageProps) {
   const params = await searchParams;
-  const filter = isVenueQueueFilter(params?.filter) ? params.filter : "unverified";
+  const filter = isVenueQueueFilter(params?.filter) ? params.filter : "pending_review";
   const sort = isVenueQueueSort(params?.sort) ? params.sort : "newest";
   const cityFilter = params?.city?.toLowerCase();
   const venues = (await listAdminVenueReviewQueue(filter, sort)).filter((venue) => cityFilter ? venue.city.toLowerCase() === cityFilter || venue.region?.toLowerCase() === cityFilter : true);
@@ -130,11 +143,11 @@ export default async function AdminVenueReviewPage({ searchParams }: AdminVenueR
                           <p className="mt-1 font-semibold">{sourceLabel(venue)}</p>
                         </div>
                         <div className="rounded-md border border-border bg-background/70 p-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Review</p>
-                          <p className="mt-1 font-semibold">{label(venue.review_status)}</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Moderation Status</p>
+                          <p className="mt-1 font-semibold">{moderationStatus(venue)}</p>
                         </div>
                         <div className="rounded-md border border-border bg-background/70 p-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Verification</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Verification Status</p>
                           <p className="mt-1 font-semibold">{label(venue.verification_status)}</p>
                         </div>
                         <div className="rounded-md border border-border bg-background/70 p-3">
@@ -170,18 +183,41 @@ export default async function AdminVenueReviewPage({ searchParams }: AdminVenueR
                           Mark Admin Verified
                         </button>
                       </form>
-                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                      {moderationStatus(venue) !== "Active" ? (
                         <form action={updateVenueStatus.bind(null, venue.id, "active", feedbackPath)}>
                           <button className="w-full rounded-md border border-border bg-card px-3 py-2 text-left text-sm font-semibold hover:bg-muted" type="submit">
-                            Publish / Make Active
+                            Approve / Make Active
                           </button>
                         </form>
+                      ) : null}
+                      {moderationStatus(venue) !== "Needs Review" ? (
+                        <form action={updateVenueStatus.bind(null, venue.id, "needs_review", feedbackPath)}>
+                          <button className="w-full rounded-md border border-border bg-card px-3 py-2 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                            Mark Needs Review
+                          </button>
+                        </form>
+                      ) : null}
+                      {moderationStatus(venue) !== "Pending Review" ? (
                         <form action={updateVenueStatus.bind(null, venue.id, "pending_review", feedbackPath)}>
                           <button className="w-full rounded-md border border-border bg-card px-3 py-2 text-left text-sm font-semibold hover:bg-muted" type="submit">
-                            Hide / Needs Review
+                            Restore to Pending Review
                           </button>
                         </form>
-                      </div>
+                      ) : null}
+                      {moderationStatus(venue) !== "Archived" ? (
+                        <form action={updateVenueStatus.bind(null, venue.id, "archived", feedbackPath)}>
+                          <button className="w-full rounded-md border border-border bg-card px-3 py-2 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                            Archive Venue
+                          </button>
+                        </form>
+                      ) : null}
+                      {moderationStatus(venue) !== "Rejected" ? (
+                        <form action={updateVenueStatus.bind(null, venue.id, "rejected", feedbackPath)}>
+                          <button className="w-full rounded-md border border-destructive/40 bg-card px-3 py-2 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                            Reject Submission
+                          </button>
+                        </form>
+                      ) : null}
                       <details className="rounded-md border border-border bg-card p-3">
                         <summary className="cursor-pointer text-sm font-semibold">More verification options</summary>
                         <div className="mt-3 grid gap-2">

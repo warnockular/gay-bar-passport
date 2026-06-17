@@ -25,7 +25,13 @@ type AdminVenuePageProps = {
 
 type Venue = Tables<"venues">;
 
-const reviewStatusOptions: Venue["review_status"][] = ["active", "hidden", "pending_review"];
+const reviewStatusOptions: Array<{ label: string; value: Venue["review_status"] }> = [
+  { label: "Pending Review", value: "pending_review" },
+  { label: "Active", value: "active" },
+  { label: "Needs Review", value: "needs_review" },
+  { label: "Archived", value: "archived" },
+  { label: "Rejected", value: "rejected" }
+];
 const verificationOptions: Array<{ label: string; score: number; value: Venue["verification_status"] }> = [
   { label: "Unverified", score: 0, value: "unverified" },
   { label: "Community Verified", score: 80, value: "community_verified" },
@@ -324,8 +330,8 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               {reviewStatusOptions.map((status) => (
-                <form key={status} action={updateVenueStatus.bind(null, venue.id, status, feedbackPath)}>
-                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">{label(status)}</button>
+                <form key={status.value} action={updateVenueStatus.bind(null, venue.id, status.value, feedbackPath)}>
+                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">{status.label}</button>
                 </form>
               ))}
             </div>

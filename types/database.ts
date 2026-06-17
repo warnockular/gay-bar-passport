@@ -917,7 +917,7 @@ export type Database = {
           opening_hours: string | null;
           region: string | null;
           readiness_status: Database["public"]["Enums"]["venue_readiness_status"];
-          review_status: "active" | "hidden" | "pending_review";
+          review_status: "active" | "hidden" | "pending_review" | "needs_review" | "archived" | "rejected";
           reviewed_at: string | null;
           reviewed_by: string | null;
           slug: string;
@@ -961,7 +961,7 @@ export type Database = {
           opening_hours?: string | null;
           region?: string | null;
           readiness_status?: Database["public"]["Enums"]["venue_readiness_status"];
-          review_status?: "active" | "hidden" | "pending_review";
+          review_status?: "active" | "hidden" | "pending_review" | "needs_review" | "archived" | "rejected";
           reviewed_at?: string | null;
           reviewed_by?: string | null;
           slug: string;
@@ -1005,7 +1005,7 @@ export type Database = {
           opening_hours?: string | null;
           region?: string | null;
           readiness_status?: Database["public"]["Enums"]["venue_readiness_status"];
-          review_status?: "active" | "hidden" | "pending_review";
+          review_status?: "active" | "hidden" | "pending_review" | "needs_review" | "archived" | "rejected";
           reviewed_at?: string | null;
           reviewed_by?: string | null;
           slug?: string;

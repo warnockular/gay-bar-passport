@@ -95,18 +95,36 @@ export async function softDeleteUser(userId: string) {
 
 export async function updateVenueStatus(venueId: string, status: VenueStatus, feedbackPath?: string) {
   const admin = await requireAdminProfile();
-  if (!["active", "hidden", "pending_review"].includes(status)) {
+  if (!["active", "archived", "hidden", "needs_review", "pending_review", "rejected"].includes(status)) {
     redirectWithError(feedbackPath, "Invalid review status.");
     return;
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("venues").update({ is_published: status === "active", review_status: status } as never).eq("id", venueId);
+  const reviewedAt = new Date().toISOString();
+  const reviewStatus = status === "hidden" ? "needs_review" : status;
+  const updatePayload: Database["public"]["Tables"]["venues"]["Update"] = {
+    is_published: reviewStatus === "active",
+    review_status: reviewStatus,
+    reviewed_at: reviewedAt,
+    reviewed_by: admin.id
+  };
+
+  if (reviewStatus === "archived") {
+    updatePayload.archived_at = reviewedAt;
+    updatePayload.archived_by = admin.id;
+  } else if (["active", "needs_review", "pending_review"].includes(reviewStatus)) {
+    updatePayload.archived_at = null;
+    updatePayload.archived_by = null;
+  }
+
+  const { error } = await supabase.from("venues").update(updatePayload as never).eq("id", venueId);
   if (error) {
     redirectWithError(feedbackPath, error.message);
     return;
   }
-  await logAudit(admin.id, "venue_status_changed", "venue", venueId, { status });
+  const auditAction = reviewStatus === "archived" ? "venue_archived" : reviewStatus === "rejected" ? "venue_rejected" : "venue_status_changed";
+  await logAudit(admin.id, auditAction, "venue", venueId, { status: reviewStatus });
   revalidatePath("/admin/venues");
   revalidatePath("/admin/venues/review");
   revalidatePath(`/admin/venues/${venueId}`);
@@ -697,7 +715,7 @@ export async function mergeDuplicateVenue(formData: FormData) {
       is_published: false,
       merge_notes: mergeReason || null,
       merged_into_venue_id: targetVenueId,
-      review_status: "hidden"
+      review_status: "archived"
     } as never)
     .eq("id", sourceVenueId);
 

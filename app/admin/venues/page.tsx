@@ -15,6 +15,14 @@ function label(value: string) {
     .join(" ");
 }
 
+function moderationStatus(venue: { archived_at?: string | null; review_status: string }) {
+  if (venue.archived_at || venue.review_status === "archived") return "Archived";
+  if (venue.review_status === "rejected") return "Rejected";
+  if (venue.review_status === "needs_review" || venue.review_status === "hidden") return "Needs Review";
+  if (venue.review_status === "pending_review") return "Pending Review";
+  return "Active";
+}
+
 export default async function AdminVenuesPage({ searchParams }: AdminVenuesPageProps) {
   const params = await searchParams;
   const cityFilter = params?.city?.toLowerCase();
@@ -59,8 +67,8 @@ export default async function AdminVenuesPage({ searchParams }: AdminVenuesPageP
                 <Link href={`/admin/venues/${venue.id}`} className="font-serif text-2xl font-semibold hover:text-primary">{venue.name}</Link>
                 <p className="mt-1 text-sm text-muted-foreground">{venue.city}, {venue.country} · {venue.category}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge>{label(venue.review_status)}</Badge>
-                  <Badge>{venue.is_published ? "published" : "hidden"}</Badge>
+                  <Badge>{moderationStatus(venue)}</Badge>
+                  <Badge>{venue.is_published ? "Published" : "Not public"}</Badge>
                   <Badge>{label(venue.verification_status)}</Badge>
                   <Badge>{label(venue.submission_status)}</Badge>
                   <Badge>{label(venue.identity_classification)}</Badge>
@@ -74,11 +82,15 @@ export default async function AdminVenuesPage({ searchParams }: AdminVenuesPageP
                 {venue.missing_data.length ? <p className="mt-2 text-xs text-muted-foreground">Missing: {venue.missing_data.join(", ")}</p> : null}
               </div>
               <div className="flex flex-wrap gap-2">
-                {(["active", "hidden", "pending_review"] as const).map((status) => (
-                  <form key={status} action={updateVenueStatus.bind(null, venue.id, status, undefined)}>
-                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Set {label(status)}</button>
-                  </form>
-                ))}
+                <form action={updateVenueStatus.bind(null, venue.id, "active", undefined)}>
+                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Approve / Make Active</button>
+                </form>
+                <form action={updateVenueStatus.bind(null, venue.id, "needs_review", undefined)}>
+                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Mark Needs Review</button>
+                </form>
+                <form action={updateVenueStatus.bind(null, venue.id, "archived", undefined)}>
+                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Archive Venue</button>
+                </form>
                 <form action={createModerationFlag.bind(null, "venue", venue.id, "Venue flagged for review")}>
                   <button className="rounded-md border border-terracotta/50 bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Flag</button>
                 </form>

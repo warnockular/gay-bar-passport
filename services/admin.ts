@@ -240,7 +240,7 @@ export async function listAdminVenues() {
   return (data ?? []) as AdminVenue[];
 }
 
-export type VenueQueueFilter = "all" | "claimed_review" | "community_submitted" | "imported_review" | "owner_submitted" | "unverified";
+export type VenueQueueFilter = "active" | "all" | "archived" | "claimed_review" | "community_submitted" | "imported_review" | "needs_review" | "owner_submitted" | "pending_review" | "rejected" | "unverified";
 export type VenueQueueSort = "name" | "newest" | "score";
 
 export async function listAdminVenueReviewQueue(filter: VenueQueueFilter = "unverified", sort: VenueQueueSort = "newest") {
@@ -254,7 +254,12 @@ export async function listAdminVenueReviewQueue(filter: VenueQueueFilter = "unve
     if (!pendingClaimVenueIds.length) return [];
   }
 
-  if (filter === "unverified") query = query.eq("verification_status", "unverified");
+  if (filter === "pending_review") query = query.eq("review_status", "pending_review").is("archived_at", null);
+  if (filter === "active") query = query.eq("review_status", "active").is("archived_at", null);
+  if (filter === "needs_review") query = query.in("review_status", ["needs_review", "hidden"]).is("archived_at", null);
+  if (filter === "archived") query = query.not("archived_at", "is", null);
+  if (filter === "rejected") query = query.eq("review_status", "rejected").is("archived_at", null);
+  if (filter === "unverified") query = query.eq("verification_status", "unverified").is("archived_at", null);
   if (filter === "community_submitted") query = query.eq("submission_status", "community_submitted").eq("review_status", "pending_review").eq("source", "community_submission");
   if (filter === "owner_submitted") query = query.eq("submission_status", "owner_submitted");
   if (filter === "imported_review") query = query.eq("submission_status", "imported").eq("review_status", "pending_review");
