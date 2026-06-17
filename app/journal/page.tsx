@@ -1,4 +1,4 @@
-import { BookOpen, MapPinned, PenLine } from "lucide-react";
+import { BookOpen, Camera, MapPinned, PenLine, Star } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ConfigurationCallout } from "@/components/auth/configuration-callout";
@@ -39,11 +39,26 @@ export default async function JournalPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge>{entry.city ?? "Journal"}</Badge>
                     {entry.venue ? <Badge className="normal-case tracking-normal">{entry.venue.name}</Badge> : null}
+                    {entry.visit ? <Badge className="normal-case tracking-normal">Visit memory</Badge> : null}
+                    {entry.photos.length ? <Badge>{entry.photos.length} {entry.photos.length === 1 ? "photo" : "photos"}</Badge> : null}
                   </div>
                   <h2 className="mt-4 font-serif text-3xl font-semibold">{entry.title}</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {entry.entry_date} · {entry.city}, {entry.country}
-                  </p>
+                  <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
+                    <span>{entry.entry_date}</span>
+                    <span>{[entry.city, entry.country].filter(Boolean).join(", ")}</span>
+                    {entry.visit?.rating ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Star className="h-3.5 w-3.5 fill-current text-burnt" aria-hidden="true" />
+                        {entry.visit.rating}/5
+                      </span>
+                    ) : null}
+                    {entry.visit?.mood ? <span>{entry.visit.mood.replace("_", " ")}</span> : null}
+                  </div>
+                  {entry.visit?.private_notes ? (
+                    <p className="mt-4 rounded-md border border-border/80 bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
+                      {entry.visit.private_notes.length > 180 ? `${entry.visit.private_notes.slice(0, 180).trim()}...` : entry.visit.private_notes}
+                    </p>
+                  ) : null}
                   <p className="mt-4 line-clamp-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{entry.body}</p>
                 </Card>
               </Link>
@@ -52,7 +67,19 @@ export default async function JournalPage() {
             <Card className="bg-card/90 p-6">
               <BookOpen className="h-5 w-5 text-terracotta" aria-hidden="true" />
               <p className="mt-4 font-semibold">No journal entries yet.</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">Start with a city, venue, or visit you want to remember.</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Use the journal for the story behind a stamp: who you met, what the room felt like, and what you want to remember later.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link className={cn(buttonVariants())} href="/journal/new">
+                  <PenLine className="h-4 w-4" aria-hidden="true" />
+                  Write first entry
+                </Link>
+                <Link className={cn(buttonVariants({ variant: "outline" }))} href="/passport">
+                  <Camera className="h-4 w-4" aria-hidden="true" />
+                  View passport
+                </Link>
+              </div>
             </Card>
           )}
         </div>

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { venueCategoryLabel } from "@/lib/venue-categories";
 import type { PassportVisit } from "@/services/visits";
 
 type PassportVisitCardProps = {
@@ -17,6 +18,13 @@ type PassportVisitCardProps = {
 export function PassportVisitCard({ visit }: PassportVisitCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
   const showVenueImage = Boolean(visit.venue?.image_url) && !imageFailed;
+  const photoCount = visit.photos.filter((photo) => photo.signedUrl).length;
+  const formattedDate = new Date(`${visit.visited_on}T00:00:00`).toLocaleDateString("en", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+  const notesPreview = visit.private_notes && visit.private_notes.length > 220 ? `${visit.private_notes.slice(0, 220).trim()}...` : visit.private_notes;
 
   return (
     <Card className="overflow-hidden bg-card/90">
@@ -36,24 +44,37 @@ export function PassportVisitCard({ visit }: PassportVisitCardProps) {
         ) : null}
         <div className="space-y-4 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <Badge>{visit.venue?.category ?? "visit"}</Badge>
+            <div className="min-w-0">
+              <div className="flex flex-wrap gap-2">
+                <Badge>{visit.venue?.category ? venueCategoryLabel(visit.venue.category) : "Visit"}</Badge>
+                {visit.stamp ? <Badge>{visit.stamp.stamp_code}</Badge> : null}
+                <Badge>{photoCount} {photoCount === 1 ? "photo" : "photos"}</Badge>
+              </div>
               <h2 className="mt-3 font-serif text-3xl font-semibold">{visit.venue?.name ?? "Venue visit"}</h2>
-              <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <CalendarDays className="h-4 w-4 text-terracotta" aria-hidden="true" />
-                {visit.visited_on} · {visit.venue?.city}, {visit.venue?.country}
+                {formattedDate}
+                {visit.venue ? <span>· {visit.venue.city}, {visit.venue.country}</span> : null}
               </p>
             </div>
             <Link className={cn(buttonVariants({ variant: "outline", size: "sm" }))} href={`/visits/${visit.id}/edit`}>
               <Pencil className="h-4 w-4" aria-hidden="true" />
-              Edit
+              Edit Visit
             </Link>
           </div>
-          <p className="flex items-center gap-2 text-sm font-semibold">
-            <Star className="h-4 w-4 fill-current text-burnt" aria-hidden="true" />
-            {visit.rating ?? 0} / 5
-          </p>
-          {visit.private_notes ? <p className="rounded-md border border-border/80 bg-background/60 p-4 text-sm leading-6 text-muted-foreground">{visit.private_notes}</p> : null}
+          <div className="flex flex-wrap gap-3 text-sm">
+            <p className="flex items-center gap-2 font-semibold">
+              <Star className="h-4 w-4 fill-current text-burnt" aria-hidden="true" />
+              {visit.rating ?? 0} / 5
+            </p>
+            {visit.mood ? <p className="text-muted-foreground">{visit.mood.replace("_", " ")}</p> : null}
+          </div>
+          {notesPreview ? (
+            <div className="rounded-md border border-border/80 bg-background/60 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Private note</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{notesPreview}</p>
+            </div>
+          ) : null}
           {visit.photos.length ? (
             <div className="grid gap-3 sm:grid-cols-3">
               {visit.photos.map((photo) =>

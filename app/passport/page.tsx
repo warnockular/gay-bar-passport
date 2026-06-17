@@ -59,11 +59,18 @@ export default async function PassportPage() {
               ))
             ) : (
               <Card className="bg-card/90 p-6">
-                <p className="font-semibold">No visits logged yet.</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">Open a venue and log your first visit to earn your first stamp.</p>
-                <Link className={cn(buttonVariants(), "mt-4")} href="/venues">
-                  Browse venues
-                </Link>
+                <p className="font-semibold">Your passport is ready for its first stamp.</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Save a venue, visit it, then log the stop to turn the night into a private travel memory.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Link className={cn(buttonVariants())} href="/venues">
+                    Browse venues
+                  </Link>
+                  <Link className={cn(buttonVariants({ variant: "outline" }))} href="/favorites">
+                    View favorites
+                  </Link>
+                </div>
               </Card>
             )}
           </div>
@@ -84,9 +91,19 @@ export default async function PassportPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm leading-6 text-muted-foreground">Achievements unlock as visits and favorites accumulate.</p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Achievements unlock as your saved venues, first visits, and city memories accumulate.
+                </p>
               )}
             </div>
+          </Card>
+          <Card className="bg-card/90 p-5">
+            <h2 className="font-serif text-2xl font-semibold">Memory loop</h2>
+            <ol className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+              <li><span className="font-semibold text-foreground">1.</span> Favorite venues you want to remember.</li>
+              <li><span className="font-semibold text-foreground">2.</span> Log the visit after you go.</li>
+              <li><span className="font-semibold text-foreground">3.</span> Add a journal entry when the story deserves more room.</li>
+            </ol>
           </Card>
         </div>
       </div>

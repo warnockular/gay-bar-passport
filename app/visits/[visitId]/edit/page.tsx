@@ -19,10 +19,11 @@ export default async function EditVisitPage({ params }: EditVisitPageProps) {
   }
 
   return (
-    <PageShell eyebrow="Edit visit" title={`Update ${visit.venue?.name ?? "this passport stop"}.`} copy="Adjust your rating, private notes, mood, or add more photos.">
+    <PageShell eyebrow="Edit visit" title={`Update ${visit.venue?.name ?? "this passport stop"}.`} copy="Adjust your rating, private notes, mood, or add more photos without losing the existing memory.">
       <Card className="max-w-3xl bg-card/90">
         <CardHeader>
           <CardTitle className="font-serif text-2xl">{visit.visited_on}</CardTitle>
+          <p className="text-sm leading-6 text-muted-foreground">Existing photos stay attached when you save. Use Cancel to return to your passport.</p>
         </CardHeader>
         <CardContent>
           <VisitForm mode="edit" visit={visit} />

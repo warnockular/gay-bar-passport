@@ -19,10 +19,11 @@ export default async function LogVisitPage({ params }: LogVisitPageProps) {
   }
 
   return (
-    <PageShell eyebrow="Visit log" title={`Stamp your visit to ${venue.name}.`} copy="Capture the date, rating, private notes, and photos from this venue stop.">
+    <PageShell eyebrow="Visit log" title={`Stamp your visit to ${venue.name}.`} copy="Capture the date, rating, private notes, and photos from this venue stop. Your notes stay private.">
       <Card className="max-w-3xl bg-card/90">
         <CardHeader>
           <CardTitle className="font-serif text-2xl">{venue.city}, {venue.country}</CardTitle>
+          <p className="text-sm leading-6 text-muted-foreground">Saving creates a passport stamp and adds this stop to your personal travel archive.</p>
         </CardHeader>
         <CardContent>
           <VisitForm mode="create" venue={venue} />

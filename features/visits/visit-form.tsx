@@ -2,6 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Camera, Save, Stamp, X } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -160,6 +162,23 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
         <Textarea id="privateNotes" placeholder="What made this stop memorable?" aria-invalid={Boolean(errors.privateNotes)} {...register("privateNotes")} />
         {errors.privateNotes ? <p className="text-sm text-destructive" role="alert">{errors.privateNotes.message}</p> : null}
       </div>
+      {mode === "edit" && visit?.photos.length ? (
+        <div className="space-y-3 rounded-md border border-border bg-background/60 p-4">
+          <div>
+            <p className="text-sm font-semibold">Existing visit photos</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">These photos stay attached when you save edits. Photo deletion is planned for a later cleanup pass.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {visit.photos.map((photo) =>
+              photo.signedUrl ? (
+                <div key={photo.id} className="relative aspect-[4/3] overflow-hidden rounded-md border border-border">
+                  <Image src={photo.signedUrl} alt="Existing visit photo" fill className="object-cover" sizes="12rem" />
+                </div>
+              ) : null
+            )}
+          </div>
+        </div>
+      ) : null}
       <div className="space-y-2">
         <Label htmlFor="visitPhotos" className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-primary">
           <Camera className="h-4 w-4" aria-hidden="true" />
@@ -208,10 +227,15 @@ export function VisitForm({ mode, venue, visit }: VisitFormProps) {
         )}
       </div>
       {result ? <p className={result.ok ? "text-sm text-sage" : "text-sm text-destructive"} role="status">{result.message}</p> : null}
-      <Button type="submit" disabled={isPending || hasInvalidPhotos}>
-        {mode === "create" ? <Stamp className="h-4 w-4" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
-        {isPending ? "Saving..." : mode === "create" ? "Log visit" : "Save visit"}
-      </Button>
+      <div className="flex flex-wrap gap-3">
+        <Button type="submit" disabled={isPending || hasInvalidPhotos}>
+          {mode === "create" ? <Stamp className="h-4 w-4" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
+          {isPending ? "Saving..." : mode === "create" ? "Log visit" : "Save visit"}
+        </Button>
+        <Link className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted" href={mode === "create" && venue ? `/venues/${venue.slug}` : "/passport"}>
+          Cancel
+        </Link>
+      </div>
     </form>
   );
 }

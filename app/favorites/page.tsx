@@ -23,7 +23,7 @@ export default async function FavoritesPage() {
   const [venues, favoriteIds] = await Promise.all([listFavoriteVenues(user.id), listFavoriteVenueIds(user.id)]);
 
   return (
-    <PageShell eyebrow="Favorites" title="Your saved venue shortlist." copy="Favorite venues now live in Supabase and follow the signed-in traveler.">
+    <PageShell eyebrow="Favorites" title="Your saved venue shortlist." copy="Keep a private shortlist of venues for upcoming trips, field notes, and nights you want to remember.">
       {venues.length ? (
         <div className="space-y-5">
           {venues.map((venue) => (
@@ -33,7 +33,7 @@ export default async function FavoritesPage() {
       ) : (
         <EmptyState
           action={<Link className={buttonVariants()} href="/venues">Browse venues</Link>}
-          description="Save venues while browsing to build a shortlist for future trips."
+          description="Tap Favorite on venue cards or detail pages to build a trip list before you go."
           title="No favorites yet."
         />
       )}
