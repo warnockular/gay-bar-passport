@@ -96,7 +96,7 @@ export async function createVisit(venueId: string, venueSlug: string, formData: 
   const visit = visitData as Pick<Tables<"visits">, "id"> | null;
 
   if (error || !visit) {
-    return { ok: false, message: error?.message ? `Visit could not be saved: ${error.message}` : "Visit could not be saved." };
+    return { ok: false, message: "Visit could not be saved. Check the details and try again." };
   }
 
   if (venue) {
@@ -152,7 +152,7 @@ export async function updateVisit(visitId: string, formData: FormData): Promise<
     .eq("id", visitId)
     .eq("user_id", user.id);
 
-  if (error) return { ok: false, message: `Visit could not be updated: ${error.message}` };
+  if (error) return { ok: false, message: "Visit could not be updated. Check the details and try again." };
 
   const photos = formData.getAll("photos").filter((item): item is File => item instanceof File && item.size > 0);
   const photoResult = await uploadVisitPhotos(user.id, visitId, photos);

@@ -24,13 +24,13 @@ export function FavoriteButton({ buttonClassName, initialIsFavorite, isSignedIn,
     setMessage(null);
 
     if (!isSignedIn) {
-      router.push(`/auth/sign-in?next=${encodeURIComponent("/venues")}`);
+      router.push(`/auth/sign-in?next=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
 
     startTransition(async () => {
       if (!isSupabaseConfigured) {
-        setMessage("Favorites need Supabase configuration.");
+        setMessage("Favorites are temporarily unavailable.");
         return;
       }
 
@@ -40,7 +40,7 @@ export function FavoriteButton({ buttonClassName, initialIsFavorite, isSignedIn,
       } = await supabase.auth.getUser();
 
       if (!user) {
-        router.push(`/auth/sign-in?next=${encodeURIComponent("/venues")}`);
+        router.push(`/auth/sign-in?next=${encodeURIComponent(window.location.pathname)}`);
         return;
       }
 
@@ -48,7 +48,7 @@ export function FavoriteButton({ buttonClassName, initialIsFavorite, isSignedIn,
         const { error } = await supabase.from("favorites").delete().eq("user_id", user.id).eq("venue_id", venueId);
 
         if (error) {
-          setMessage(error.message);
+          setMessage("Could not update this favorite. Please try again.");
           return;
         }
 
@@ -60,7 +60,7 @@ export function FavoriteButton({ buttonClassName, initialIsFavorite, isSignedIn,
       const { error } = await supabase.from("favorites").insert({ user_id: user.id, venue_id: venueId } as never);
 
       if (error) {
-        setMessage(error.message);
+        setMessage("Could not save this favorite. Please try again.");
         return;
       }
 

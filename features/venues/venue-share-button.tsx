@@ -11,10 +11,12 @@ type VenueShareButtonProps = {
 
 export function VenueShareButton({ path, title }: VenueShareButtonProps) {
   const [copied, setCopied] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   async function shareVenue() {
     const url = `${window.location.origin}${path}`;
     setCopied(false);
+    setMessage(null);
 
     if (navigator.share) {
       try {
@@ -25,9 +27,13 @@ export function VenueShareButton({ path, title }: VenueShareButtonProps) {
       }
     }
 
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2500);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setMessage("Copy was not available in this browser.");
+    }
   }
 
   return (
@@ -37,6 +43,7 @@ export function VenueShareButton({ path, title }: VenueShareButtonProps) {
         Share Venue
       </Button>
       {copied ? <p className="text-xs font-semibold text-sage" role="status">Venue link copied.</p> : null}
+      {message ? <p className="text-xs text-muted-foreground" role="status">{message}</p> : null}
     </div>
   );
 }
