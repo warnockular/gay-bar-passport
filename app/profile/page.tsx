@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, Camera, ShieldCheck } from "lucide-react";
+import { BarChart3, Camera, Heart, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import { ConfigurationCallout } from "@/components/auth/configuration-callout";
 import { PageShell } from "@/components/layout/page-shell";
@@ -67,6 +67,16 @@ export default async function ProfilePage() {
             copy="Your visits, stamps, journals, and mapped destinations now have a private insight dashboard."
             detail="Personal travel data"
           />
+          <Link href="/favorites" className="block rounded-md border border-border bg-card/90 p-5 transition-colors hover:bg-card">
+            <div className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-rose" aria-hidden="true" />
+              <h2 className="font-serif text-2xl font-semibold">Favorites</h2>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Your saved places live here: venues to revisit, recommend, or remember for a future trip.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-primary">Open saved venues</p>
+          </Link>
           <Link className="text-sm font-semibold text-primary hover:underline" href="/analytics">
             View travel analytics
           </Link>
