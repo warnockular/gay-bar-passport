@@ -13,22 +13,46 @@ type VenueImagePreviewProps = {
   mode?: "admin" | "public" | "submission";
 };
 
+type PreviewStatus = "idle" | "loading" | "loaded" | "failed";
+
 export function VenueImagePreview({ alt, className, imageUrl, mode = "public" }: VenueImagePreviewProps) {
-  const [failed, setFailed] = useState(false);
-  const hasImage = Boolean(imageUrl) && !failed;
+  const [status, setStatus] = useState<PreviewStatus>(imageUrl ? "loading" : "idle");
+  const hasImage = Boolean(imageUrl) && status !== "failed";
 
   useEffect(() => {
-    setFailed(false);
+    setStatus(imageUrl ? "loading" : "idle");
   }, [imageUrl]);
 
   if (mode === "public" && !hasImage) return null;
   if (mode === "submission" && !imageUrl) return null;
 
+  const showSubmissionMessage = mode === "submission" && status !== "loaded";
+
   return (
     <div className={cn("relative overflow-hidden rounded-md border border-border bg-muted/40", className)}>
-      {hasImage ? (
+      {hasImage && !showSubmissionMessage ? (
         <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.72),rgba(255,255,255,0.28))] p-5">
-          <img src={imageUrl ?? ""} alt={alt} className="max-h-full max-w-full object-contain" onError={() => setFailed(true)} />
+          <img
+            key={imageUrl}
+            src={imageUrl ?? ""}
+            alt={alt}
+            className="max-h-full max-w-full object-contain"
+            onError={() => setStatus("failed")}
+            onLoad={() => setStatus("loaded")}
+          />
+        </div>
+      ) : showSubmissionMessage && status === "loading" ? (
+        <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+          <p className="font-semibold text-foreground">Checking image preview...</p>
+          <img
+            key={imageUrl}
+            src={imageUrl ?? undefined}
+            alt=""
+            aria-hidden="true"
+            className="sr-only"
+            onError={() => setStatus("failed")}
+            onLoad={() => setStatus("loaded")}
+          />
         </div>
       ) : (
         <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
