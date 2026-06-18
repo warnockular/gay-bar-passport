@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { submitCommunityVenue, type VenueSubmissionResult } from "@/features/venues/actions";
+import { VenueImagePreview } from "@/features/venues/venue-image-preview";
 import { countryOptions, getCityOptions, getCountryOption, getNeighborhoodOptions } from "@/lib/location-options";
 import { venueCategoryOptions } from "@/lib/venue-categories";
 const initialValues = {
@@ -200,6 +201,12 @@ export function VenueSubmissionForm() {
         <div className="space-y-2">
           <Label htmlFor="imageUrl">Image URL optional</Label>
           <Input id="imageUrl" name="imageUrl" type="url" value={values.imageUrl} onChange={(event) => updateValue("imageUrl", event.target.value)} placeholder="https://images.unsplash.com/..." aria-invalid={Boolean(fieldError(result, "imageUrl"))} />
+          <VenueImagePreview
+            alt="Venue image preview"
+            className="h-48 w-full sm:h-56"
+            imageUrl={values.imageUrl}
+            mode="submission"
+          />
           {fieldError(result, "imageUrl") ? <p className="text-sm text-destructive">{fieldError(result, "imageUrl")}</p> : null}
         </div>
       </div>
