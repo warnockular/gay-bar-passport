@@ -41,6 +41,10 @@ export type GooglePlacesRawResult = {
   photos?: GooglePlacesPhoto[];
   place_id?: string;
   primaryType?: string;
+  regularOpeningHours?: {
+    weekdayDescriptions?: string[];
+    weekday_text?: string[];
+  };
   types?: string[];
   userRatingCount?: number;
   websiteUri?: string;
@@ -55,6 +59,19 @@ export type GooglePlacesPhotoMetadata = {
 };
 
 export type GooglePlacesCandidateMapper = (place: GooglePlacesRawResult) => ImportedVenueCandidate;
+
+export type GooglePlacesSearchInput = {
+  city: string;
+  country: string;
+  neighborhood?: string;
+  region: string;
+  searchTerm: string;
+};
+
+export type GooglePlacesSearchResult = {
+  candidates: ImportedVenueCandidate[];
+  error?: string;
+};
 
 function componentText(component: GooglePlacesAddressComponent) {
   return component.longText ?? component.long_name ?? component.shortText ?? component.short_name ?? null;
@@ -95,7 +112,11 @@ export const mapGooglePlaceToCandidate: GooglePlacesCandidateMapper = (place) =>
   const country = addressComponent(place, "country");
   const postalCode = addressComponent(place, "postal_code");
   const neighborhood = addressComponent(place, "neighborhood") ?? addressComponent(place, "sublocality");
-  const openingHours = place.currentOpeningHours?.weekdayDescriptions ?? place.currentOpeningHours?.weekday_text ?? [];
+  const openingHours = place.regularOpeningHours?.weekdayDescriptions
+    ?? place.currentOpeningHours?.weekdayDescriptions
+    ?? place.regularOpeningHours?.weekday_text
+    ?? place.currentOpeningHours?.weekday_text
+    ?? [];
   const placeTypes = [place.primaryType, ...(place.types ?? [])].filter((type): type is string => Boolean(type));
   const suggestedCategory = mapGoogleTypeToCategory(place.primaryType) ?? placeTypes.map(mapGoogleTypeToCategory).find(Boolean) ?? null;
   const photos = mapGooglePhotos(place.photos);
@@ -134,16 +155,71 @@ export const mapGooglePlaceToCandidate: GooglePlacesCandidateMapper = (place) =>
 };
 
 export const googlePlacesImportAdapter: ImportAdapter = {
-  parse() {
-    // TODO: API key handling must live in server-only config and never in client bundles.
+  parse(input) {
     // TODO: Add pagination support for Places Text Search / Nearby Search result pages.
     // TODO: Add rate limiting and quota-aware retries before any production import run.
     // TODO: Support incremental refresh by provider ID and last_seen_at.
     // TODO: Detect closed businesses via businessStatus before staging or approving.
     // TODO: Decide whether Google photo references are stored only as metadata or downloaded into moderated storage.
     // TODO: Feed Google-specific signals into duplicate scoring once real payloads are staged.
-    // This placeholder intentionally does not call external APIs.
-    return { candidates: [], invalidCandidates: [], totalCount: 0 };
+    const rawResults = (input.rawResults ?? []).filter((result): result is GooglePlacesRawResult => Boolean(result && typeof result === "object"));
+    const candidates = rawResults.map(mapGooglePlaceToCandidate);
+    return { candidates, invalidCandidates: [], totalCount: rawResults.length };
   },
   sourceType: "google_places"
 };
+
+export async function searchGooglePlacesCandidates(input: GooglePlacesSearchInput): Promise<GooglePlacesSearchResult> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) return { candidates: [], error: "Missing GOOGLE_PLACES_API_KEY in the server environment." };
+
+  const locationParts = [input.neighborhood, input.city, input.region, input.country].filter(Boolean).join(", ");
+  const textQuery = `${input.searchTerm} in ${locationParts}`;
+  const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    body: JSON.stringify({
+      includedType: undefined,
+      languageCode: "en",
+      maxResultCount: 12,
+      textQuery
+    }),
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": [
+        "places.id",
+        "places.displayName",
+        "places.formattedAddress",
+        "places.addressComponents",
+        "places.location",
+        "places.googleMapsUri",
+        "places.websiteUri",
+        "places.nationalPhoneNumber",
+        "places.internationalPhoneNumber",
+        "places.regularOpeningHours",
+        "places.currentOpeningHours",
+        "places.primaryType",
+        "places.types",
+        "places.photos",
+        "places.businessStatus",
+        "places.userRatingCount"
+      ].join(",")
+    },
+    method: "POST",
+    next: { revalidate: 0 }
+  });
+
+  if (!response.ok) {
+    let message = `Google Places request failed with status ${response.status}.`;
+    try {
+      const payload = await response.json() as { error?: { message?: string } };
+      if (payload.error?.message) message = payload.error.message;
+    } catch {
+      // Keep the status-based admin message.
+    }
+    return { candidates: [], error: message };
+  }
+
+  const payload = await response.json() as { places?: GooglePlacesRawResult[] };
+  const places = payload.places ?? [];
+  return { candidates: places.map(mapGooglePlaceToCandidate) };
+}

@@ -726,6 +726,38 @@ export async function importCuratedCsvToStaging(formData: FormData) {
   redirect(`/admin/imports/${result.batchId}?updated=csv-staged`);
 }
 
+export async function importSelectedGooglePlacesToStaging(formData: FormData) {
+  const admin = await requireAdminProfile();
+  const selectedResults = formData.getAll("selectedGooglePlace").map(String);
+  if (!selectedResults.length) redirect("/admin/imports/google?error=no-selection");
+
+  const rawResults = selectedResults.flatMap((value) => {
+    try {
+      return [JSON.parse(value) as unknown];
+    } catch {
+      return [];
+    }
+  });
+  if (!rawResults.length) redirect("/admin/imports/google?error=invalid-selection");
+
+  const sourceName = String(formData.get("sourceName") ?? "").trim() || "Google Places import";
+  const result = await stageImportedVenueCandidates({
+    createdBy: admin.id,
+    rawResults,
+    sourceName,
+    sourceType: "google_places"
+  });
+
+  if (result.error) {
+    redirect(result.batchId ? `/admin/imports/${result.batchId}?error=${encodeURIComponent(result.error)}` : `/admin/imports/google?error=${encodeURIComponent(result.error)}`);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/imports");
+  if (result.batchId) revalidatePath(`/admin/imports/${result.batchId}`);
+  redirect(`/admin/imports/${result.batchId}?updated=google-staged`);
+}
+
 export async function reviewStagedVenue(stagedVenueId: string, batchId: string, status: ImportApprovalStatus) {
   const admin = await requireAdminProfile();
   if (!["approved", "rejected"].includes(status)) return;

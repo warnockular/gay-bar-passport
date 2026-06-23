@@ -18,10 +18,12 @@ Copy `.env.example` to `.env.local`.
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+GOOGLE_PLACES_API_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
 Supabase is required for auth, profiles, visits, journal entries, social features, analytics, and admin operations.
+`GOOGLE_PLACES_API_KEY` is server-only and used by admin Google Places import previews; never expose it with a `NEXT_PUBLIC_` prefix.
 
 ## Validation Commands
 
@@ -61,6 +63,7 @@ Deploy from GitHub to Vercel. Production and Preview environments need:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `GOOGLE_PLACES_API_KEY`
 - `NEXT_PUBLIC_SITE_URL=https://gay-bar-passport.vercel.app`
 
 Supabase Auth should include redirect URLs for local and production callback routes:

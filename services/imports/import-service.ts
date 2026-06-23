@@ -121,7 +121,7 @@ export async function stageImportedVenueCandidates(input: ImportAdapterInput & {
     .eq("id", batch.id);
 
   await supabase.from("audit_logs").insert({
-    action: "curated_csv_import_staged",
+    action: input.sourceType === "google_places" ? "google_places_import_staged" : "curated_csv_import_staged",
     actor_id: input.createdBy,
     metadata: {
       invalidRows: String(invalidCandidates.length),

@@ -36,6 +36,7 @@ export type ImportCandidateError = {
 
 export type ImportAdapterInput = {
   csv?: string;
+  rawResults?: unknown[];
   sourceName: string;
   sourceType: ImportProviderType;
 };
