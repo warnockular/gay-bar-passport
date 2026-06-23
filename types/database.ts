@@ -385,6 +385,8 @@ export type Database = {
           created_at: string;
           duplicate_existing_venue_id: string | null;
           duplicate_review_status: Database["public"]["Enums"]["import_duplicate_status"];
+          edited_at: string | null;
+          edited_by: string | null;
           id: string;
           import_batch_id: string;
           last_seen_at: string | null;
@@ -419,6 +421,8 @@ export type Database = {
           created_at?: string;
           duplicate_existing_venue_id?: string | null;
           duplicate_review_status?: Database["public"]["Enums"]["import_duplicate_status"];
+          edited_at?: string | null;
+          edited_by?: string | null;
           id?: string;
           import_batch_id: string;
           last_seen_at?: string | null;
@@ -453,6 +457,8 @@ export type Database = {
           created_at?: string;
           duplicate_existing_venue_id?: string | null;
           duplicate_review_status?: Database["public"]["Enums"]["import_duplicate_status"];
+          edited_at?: string | null;
+          edited_by?: string | null;
           id?: string;
           import_batch_id?: string;
           last_seen_at?: string | null;
@@ -495,6 +501,13 @@ export type Database = {
             columns: ["duplicate_existing_venue_id"];
             isOneToOne: false;
             referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_import_staging_edited_by_fkey";
+            columns: ["edited_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
           {

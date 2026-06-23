@@ -43,6 +43,7 @@ export type AdminBulkOperationDraft = Tables<"venue_bulk_operation_drafts">;
 export type AdminStagedVenue = Tables<"venue_import_staging"> & {
   approvedVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country" | "slug"> | null;
   duplicateVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country"> | null;
+  editedBy?: Pick<Tables<"profiles">, "display_name" | "id"> | null;
   importBatch?: Pick<Tables<"import_batches">, "id" | "source_name" | "source_type" | "created_at"> | null;
   matchedVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country" | "slug"> | null;
 };
@@ -475,6 +476,7 @@ export async function getStagedVenue(candidateId: string): Promise<AdminStagedVe
       *,
       importBatch:import_batches(id, source_name, source_type, created_at),
       duplicateVenue:venues!venue_import_staging_duplicate_existing_venue_id_fkey(id, name, city, country),
+      editedBy:profiles!venue_import_staging_edited_by_fkey(id, display_name),
       matchedVenue:venues!venue_import_staging_matched_venue_id_fkey(id, name, city, country, slug),
       approvedVenue:venues!venue_import_staging_approved_venue_id_fkey(id, name, city, country, slug)
     `)

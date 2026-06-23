@@ -157,6 +157,45 @@ function tagSlugFromLabel(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function formString(formData: FormData, key: string) {
+  return String(formData.get(key) ?? "").trim();
+}
+
+function nullableFormString(formData: FormData, key: string) {
+  const value = formString(formData, key);
+  return value || null;
+}
+
+function parseNullableFormNumber(formData: FormData, key: string, label: string) {
+  const value = formString(formData, key);
+  if (!value) return { error: null, value: null };
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) return { error: `${label} must be numeric.`, value: null };
+  return { error: null, value: parsed };
+}
+
+function candidateField(candidate: Tables<"venue_import_staging">, key: string) {
+  const raw = jsonObject(candidate.raw_data);
+  const metadata = jsonObject(candidate.source_metadata);
+  const address = jsonObject(candidate.address_components);
+  const direct = candidate[key as keyof Tables<"venue_import_staging">];
+  return stringFrom(direct, address[key], metadata[key], raw[key]);
+}
+
+function candidateCategory(candidate: Tables<"venue_import_staging">) {
+  const raw = jsonObject(candidate.raw_data);
+  return categoryFromCsv(candidate.suggested_category ?? "") ?? categoryFromCsv(String(raw.category ?? ""));
+}
+
+function validateStagedCandidateApproval(candidate: Tables<"venue_import_staging">) {
+  const name = candidateField(candidate, "name");
+  const category = candidateCategory(candidate);
+  const city = candidateField(candidate, "city");
+  const country = candidateField(candidate, "country");
+  if (!name || !category || !city || !country) return null;
+  return { category, city, country, name };
+}
+
 export async function updateUserRole(userId: string, formData: FormData) {
   const admin = await requireAdminProfile(["admin"]);
   const role = String(formData.get("role") ?? "user") as ProfileRole;
@@ -881,6 +920,127 @@ export async function reviewStagedVenue(stagedVenueId: string, batchId: string, 
   revalidatePath(`/admin/imports/${batchId}`);
 }
 
+export async function updateStagedVenueCandidate(candidateId: string, formData: FormData) {
+  const admin = await requireAdminProfile();
+  const supabase = await createSupabaseServerClient();
+  const { data: candidateData } = await supabase
+    .from("venue_import_staging")
+    .select("*")
+    .eq("id", candidateId)
+    .maybeSingle();
+  const candidate = candidateData as Tables<"venue_import_staging"> | null;
+  if (!candidate) redirect("/admin/imports?error=candidate-not-found");
+  if (candidate.approval_status === "approved" || candidate.approved_venue_id) {
+    redirect(`/admin/imports/staged/${candidateId}?error=already-approved`);
+  }
+
+  const latitude = parseNullableFormNumber(formData, "latitude", "Latitude");
+  const longitude = parseNullableFormNumber(formData, "longitude", "Longitude");
+  const confidenceScore = parseNullableFormNumber(formData, "confidenceScore", "Confidence score");
+  const numberError = latitude.error ?? longitude.error ?? confidenceScore.error;
+  if (numberError) redirect(`/admin/imports/staged/${candidateId}?error=${encodeURIComponent(numberError)}`);
+  if (confidenceScore.value !== null && (confidenceScore.value < 0 || confidenceScore.value > 100)) {
+    redirect(`/admin/imports/staged/${candidateId}?error=${encodeURIComponent("Confidence score must be between 0 and 100.")}`);
+  }
+
+  const category = nullableFormString(formData, "category");
+  if (category && !venueCategoryValues.includes(category as never)) {
+    redirect(`/admin/imports/staged/${candidateId}?error=${encodeURIComponent("Choose a valid category.")}`);
+  }
+
+  const addressComponents = {
+    ...jsonObject(candidate.address_components),
+    address: nullableFormString(formData, "address"),
+    city: nullableFormString(formData, "city"),
+    country: nullableFormString(formData, "country"),
+    neighborhood: nullableFormString(formData, "neighborhood"),
+    postal_code: nullableFormString(formData, "postalCode"),
+    region: nullableFormString(formData, "region")
+  };
+  const sourceMetadata = {
+    ...jsonObject(candidate.source_metadata),
+    description: nullableFormString(formData, "description"),
+    image_url: nullableFormString(formData, "imageUrl"),
+    opening_hours: nullableFormString(formData, "openingHours"),
+    website_url: nullableFormString(formData, "websiteUrl")
+  };
+  const suggestedTags = parseSuggestedTags(formString(formData, "suggestedTags"));
+  const nextValues = {
+    address: addressComponents.address,
+    category,
+    city: nullableFormString(formData, "city"),
+    confidence_score: confidenceScore.value,
+    country: nullableFormString(formData, "country"),
+    description: sourceMetadata.description,
+    image_url: sourceMetadata.image_url,
+    latitude: latitude.value,
+    longitude: longitude.value,
+    name: nullableFormString(formData, "name"),
+    neighborhood: addressComponents.neighborhood,
+    notes: nullableFormString(formData, "notes"),
+    opening_hours: sourceMetadata.opening_hours,
+    phone: nullableFormString(formData, "phone"),
+    postal_code: nullableFormString(formData, "postalCode"),
+    region: addressComponents.region,
+    suggested_tags: suggestedTags.join(", "),
+    website_url: sourceMetadata.website_url
+  };
+  const previousValues = {
+    address: candidateField(candidate, "address"),
+    category: candidate.suggested_category,
+    city: candidateField(candidate, "city"),
+    confidence_score: candidate.confidence_score,
+    country: candidateField(candidate, "country"),
+    description: candidateField(candidate, "description"),
+    image_url: candidateField(candidate, "image_url"),
+    latitude: candidate.latitude,
+    longitude: candidate.longitude,
+    name: candidateField(candidate, "name"),
+    neighborhood: candidateField(candidate, "neighborhood"),
+    notes: candidate.review_notes,
+    opening_hours: candidateField(candidate, "opening_hours"),
+    phone: candidate.phone,
+    postal_code: candidate.postal_code,
+    region: candidateField(candidate, "region"),
+    suggested_tags: candidate.suggested_tags.join(", "),
+    website_url: candidateField(candidate, "website_url")
+  };
+  const changedFields = Object.entries(nextValues)
+    .filter(([key, value]) => String(previousValues[key as keyof typeof previousValues] ?? "") !== String(value ?? ""))
+    .map(([key]) => key);
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("venue_import_staging")
+    .update({
+      address_components: addressComponents,
+      city: nullableFormString(formData, "city"),
+      confidence_score: confidenceScore.value,
+      country: nullableFormString(formData, "country"),
+      edited_at: now,
+      edited_by: admin.id,
+      latitude: latitude.value,
+      longitude: longitude.value,
+      name: nullableFormString(formData, "name"),
+      phone: nullableFormString(formData, "phone"),
+      postal_code: nullableFormString(formData, "postalCode"),
+      review_notes: nullableFormString(formData, "notes"),
+      source_metadata: sourceMetadata,
+      suggested_category: category,
+      suggested_tags: suggestedTags,
+      updated_at: now
+    } as never)
+    .eq("id", candidateId);
+
+  if (error) redirect(`/admin/imports/staged/${candidateId}?error=${encodeURIComponent(error.message)}`);
+  await logAudit(admin.id, "import_candidate_edited", "venue_import_staging", candidateId, {
+    changedFields: changedFields.length ? changedFields.join(", ") : "none"
+  });
+  revalidatePath(`/admin/imports/staged/${candidateId}`);
+  revalidatePath(`/admin/imports/${candidate.import_batch_id}`);
+  redirect(`/admin/imports/staged/${candidateId}?updated=edited`);
+}
+
 export async function approveStagedVenueAsNew(candidateId: string) {
   const admin = await requireAdminProfile();
   const supabase = await createSupabaseServerClient();
@@ -899,37 +1059,37 @@ export async function approveStagedVenueAsNew(candidateId: string) {
   const raw = jsonObject(candidate.raw_data);
   const metadata = jsonObject(candidate.source_metadata);
   const addressComponents = jsonObject(candidate.address_components);
-  const name = stringFrom(candidate.name, raw.name);
-  const city = stringFrom(candidate.city, raw.city, addressComponents.city);
-  const country = stringFrom(candidate.country, raw.country, addressComponents.country);
+  const validated = validateStagedCandidateApproval(candidate);
 
-  if (!name || !city || !country) {
+  if (!validated) {
     redirect(`/admin/imports/staged/${candidateId}?error=missing-required-fields`);
   }
 
   const venueId = crypto.randomUUID();
-  const category = categoryFromCsv(candidate.suggested_category ?? "") ?? categoryFromCsv(String(raw.category ?? "")) ?? "bar";
+  const { category, city, country, name } = validated;
   const now = new Date().toISOString();
   const slug = `${slugify(`${name}-${city}`)}-${venueId.slice(0, 8)}`;
   const insertedVenue = {
-    address: stringFrom(addressComponents.address, raw.address, metadata.address),
+    address: stringFrom(addressComponents.address, metadata.address, raw.address),
     category,
     city,
     city_slug: slugify(city),
     country,
     country_slug: slugify(country),
-    description: stringFrom(raw.description, metadata.description, candidate.review_notes),
+    description: stringFrom(metadata.description, raw.description, candidate.review_notes),
     id: venueId,
     identity_classification: "community_recommended",
-    image_url: stringFrom(raw.image_url, metadata.image_url),
+    image_url: stringFrom(metadata.image_url, raw.image_url),
     is_lgbtq_owned: false,
     is_published: false,
     latitude: candidate.latitude,
     longitude: candidate.longitude,
     name,
-    neighborhood: stringFrom(addressComponents.neighborhood, raw.neighborhood, metadata.neighborhood),
-    opening_hours: stringFrom(raw.opening_hours, metadata.opening_hours),
-    region: stringFrom(addressComponents.region, raw.region, metadata.region),
+    neighborhood: stringFrom(addressComponents.neighborhood, metadata.neighborhood, raw.neighborhood),
+    opening_hours: stringFrom(metadata.opening_hours, raw.opening_hours),
+    phone: candidate.phone,
+    postal_code: candidate.postal_code,
+    region: stringFrom(addressComponents.region, metadata.region, raw.region),
     review_status: "pending_review",
     reviewed_at: null,
     reviewed_by: null,
@@ -940,7 +1100,7 @@ export async function approveStagedVenueAsNew(candidateId: string) {
     submission_status: "imported",
     verification_score: 0,
     verification_status: "unverified",
-    website_url: stringFrom(raw.website_url, metadata.website_url)
+    website_url: stringFrom(metadata.website_url, raw.website_url)
   } satisfies Database["public"]["Tables"]["venues"]["Insert"];
 
   const { error: venueError } = await supabase.from("venues").insert(insertedVenue as never);
@@ -1004,17 +1164,20 @@ export async function updateExistingVenueFromStagedCandidate(candidateId: string
   if (candidate.approval_status === "approved" || candidate.approved_venue_id) {
     redirect(`/admin/imports/staged/${candidateId}?error=already-approved`);
   }
+  if (!validateStagedCandidateApproval(candidate)) {
+    redirect(`/admin/imports/staged/${candidateId}?error=missing-required-fields`);
+  }
 
   const raw = jsonObject(candidate.raw_data);
   const metadata = jsonObject(candidate.source_metadata);
   const safeValues = {
-    image_url: stringFrom(raw.image_url, metadata.image_url),
+    image_url: stringFrom(metadata.image_url, raw.image_url),
     latitude: candidate.latitude,
     longitude: candidate.longitude,
-    opening_hours: stringFrom(raw.opening_hours, metadata.opening_hours),
+    opening_hours: stringFrom(metadata.opening_hours, raw.opening_hours),
     phone: candidate.phone,
     postal_code: candidate.postal_code,
-    website_url: stringFrom(raw.website_url, metadata.website_url)
+    website_url: stringFrom(metadata.website_url, raw.website_url)
   } satisfies Pick<Database["public"]["Tables"]["venues"]["Update"], "image_url" | "latitude" | "longitude" | "opening_hours" | "phone" | "postal_code" | "website_url">;
 
   const updatePayload = Object.fromEntries(
