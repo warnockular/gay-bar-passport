@@ -313,13 +313,17 @@ export type Database = {
           completed_at: string | null;
           created_at: string;
           created_by: string | null;
+          error_details: Json;
           id: string;
           imported_count: number;
+          invalid_count: number;
           rejected_count: number;
           source_name: string;
           source_type: string;
           started_at: string | null;
+          staged_count: number;
           status: Database["public"]["Enums"]["import_batch_status"];
+          total_count: number;
           updated_at: string;
         };
         Insert: {
@@ -327,13 +331,17 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           created_by?: string | null;
+          error_details?: Json;
           id?: string;
           imported_count?: number;
+          invalid_count?: number;
           rejected_count?: number;
           source_name: string;
           source_type: string;
           started_at?: string | null;
+          staged_count?: number;
           status?: Database["public"]["Enums"]["import_batch_status"];
+          total_count?: number;
           updated_at?: string;
         };
         Update: {
@@ -341,13 +349,17 @@ export type Database = {
           completed_at?: string | null;
           created_at?: string;
           created_by?: string | null;
+          error_details?: Json;
           id?: string;
           imported_count?: number;
+          invalid_count?: number;
           rejected_count?: number;
           source_name?: string;
           source_type?: string;
           started_at?: string | null;
+          staged_count?: number;
           status?: Database["public"]["Enums"]["import_batch_status"];
+          total_count?: number;
           updated_at?: string;
         };
         Relationships: [

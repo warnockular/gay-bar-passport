@@ -6,6 +6,7 @@ import { getImportBatch, getImportBatchStats, listAdminVenues, listStagedVenues 
 
 type AdminImportBatchPageProps = {
   params: Promise<{ batchId: string }>;
+  searchParams?: Promise<{ error?: string; updated?: string }>;
 };
 
 function JsonPreview({ value }: { value: unknown }) {
@@ -16,27 +17,60 @@ function JsonPreview({ value }: { value: unknown }) {
   );
 }
 
-export default async function AdminImportBatchPage({ params }: AdminImportBatchPageProps) {
+type CsvImportError = { errors?: string[]; row?: number; values?: Record<string, string> };
+
+function invalidRows(value: unknown): CsvImportError[] {
+  return Array.isArray(value) ? value.filter((row): row is CsvImportError => Boolean(row && typeof row === "object")) : [];
+}
+
+export default async function AdminImportBatchPage({ params, searchParams }: AdminImportBatchPageProps) {
   const { batchId } = await params;
+  const query = (await searchParams) ?? {};
   const [batch, stagedVenues, stats, venues] = await Promise.all([getImportBatch(batchId), listStagedVenues(batchId), getImportBatchStats(batchId), listAdminVenues()]);
 
   if (!batch) notFound();
+  const errors = invalidRows(batch.error_details);
 
   return (
     <div>
       <Badge>Import Batch</Badge>
       <h1 className="mt-5 font-serif text-5xl font-semibold">{batch.source_name}</h1>
+      {query.updated === "csv-staged" ? (
+        <p className="mt-4 rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage" role="status">
+          CSV import staged. Review valid rows below before any future approval workflow.
+        </p>
+      ) : null}
+      {query.error ? (
+        <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-semibold text-destructive" role="alert">
+          Import staging failed: {query.error}
+        </p>
+      ) : null}
       <div className="mt-6 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
         <Card className="bg-card/90 p-4"><p className="text-xs uppercase text-muted-foreground">Status</p><p className="mt-2 font-semibold">{batch.status}</p></Card>
-        <Card className="bg-card/90 p-4"><p className="text-xs uppercase text-muted-foreground">Staged</p><p className="mt-2 font-semibold">{stats.total}</p></Card>
+        <Card className="bg-card/90 p-4"><p className="text-xs uppercase text-muted-foreground">Total rows</p><p className="mt-2 font-semibold">{batch.total_count || stats.total}</p></Card>
+        <Card className="bg-card/90 p-4"><p className="text-xs uppercase text-muted-foreground">Staged</p><p className="mt-2 font-semibold">{batch.staged_count || stats.total}</p></Card>
+        <Card className="bg-card/90 p-4"><p className="text-xs uppercase text-muted-foreground">Invalid</p><p className="mt-2 font-semibold">{batch.invalid_count}</p></Card>
         <Card className="bg-card/90 p-4"><p className="text-xs uppercase text-muted-foreground">Pending</p><p className="mt-2 font-semibold">{stats.pending}</p></Card>
         <Card className="bg-card/90 p-4"><p className="text-xs uppercase text-muted-foreground">Duplicates</p><p className="mt-2 font-semibold">{stats.duplicateCandidates}</p></Card>
-        <Card className="bg-card/90 p-4"><p className="text-xs uppercase text-muted-foreground">Approved</p><p className="mt-2 font-semibold">{stats.approved}</p></Card>
-        <Card className="bg-card/90 p-4"><p className="text-xs uppercase text-muted-foreground">Rejected</p><p className="mt-2 font-semibold">{stats.rejected}</p></Card>
       </div>
       <Card className="mt-6 bg-card/90 p-5 text-sm text-muted-foreground">
         Source: {batch.source_type} · Started: {batch.started_at ?? "not started"} · Completed: {batch.completed_at ?? "not completed"} · Merged: {stats.merged}
       </Card>
+      {errors.length ? (
+        <Card className="mt-6 bg-card/90 p-5">
+          <h2 className="font-serif text-2xl font-semibold">Invalid rows</h2>
+          <p className="mt-2 text-sm text-muted-foreground">These rows were skipped. Valid rows from the same CSV were still staged.</p>
+          <div className="mt-4 space-y-3">
+            {errors.slice(0, 25).map((error, index) => (
+              <div key={`${error.row ?? index}-${index}`} className="rounded-md border border-border bg-background/70 p-3 text-sm">
+                <p className="font-semibold">Row {error.row ?? "unknown"}</p>
+                <p className="mt-1 text-destructive">{(error.errors ?? ["Invalid row."]).join(" ")}</p>
+                {error.values ? <JsonPreview value={error.values} /> : null}
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
       <div className="mt-8 space-y-4">
         {stagedVenues.length ? (
           stagedVenues.map((venue) => (
@@ -50,7 +84,15 @@ export default async function AdminImportBatchPage({ params }: AdminImportBatchP
                     <Badge>{venue.duplicate_review_status}</Badge>
                     <Badge>{venue.source}</Badge>
                     {venue.source_id ? <Badge>{venue.source_id}</Badge> : null}
+                    {venue.confidence_score !== null ? <Badge>{venue.confidence_score}/100 confidence</Badge> : null}
+                    {venue.suggested_category ? <Badge>{venue.suggested_category}</Badge> : null}
                   </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {venue.phone ? `Phone: ${venue.phone} · ` : ""}{venue.postal_code ? `Postal: ${venue.postal_code}` : ""}
+                  </p>
+                  {venue.suggested_tags.length ? (
+                    <p className="mt-2 text-xs text-muted-foreground">Suggested tags: {venue.suggested_tags.join(", ")}</p>
+                  ) : null}
                   {venue.duplicateVenue ? <p className="mt-2 text-xs text-muted-foreground">Duplicate target: {venue.duplicateVenue.name}, {venue.duplicateVenue.city}</p> : null}
                   <JsonPreview value={venue.raw_data} />
                 </div>
