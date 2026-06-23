@@ -5,8 +5,11 @@ type OpenStreetMapTags = Record<string, string | undefined>;
 
 export type OpenStreetMapRawElement = {
   _searchContext?: {
+    centerLatitude?: number;
+    centerLongitude?: number;
     city?: string;
     country?: string;
+    includeBroadResults?: boolean;
     neighborhood?: string;
     region?: string;
     searchTerm?: string;
@@ -32,6 +35,7 @@ type NominatimSearchResult = {
 export type OpenStreetMapSearchInput = {
   city: string;
   country: string;
+  includeBroadResults?: boolean;
   neighborhood?: string;
   region: string;
   searchTerm: string;
@@ -43,6 +47,10 @@ export type OpenStreetMapSearchResult = {
 };
 
 const USER_AGENT = "Gay Bar Passport admin import (https://gay-bar-passport.vercel.app)";
+const MINIMUM_RELEVANCE_SCORE = 45;
+const QUEER_KEYWORDS = ["gay", "queer", "lesbian", "lgbt", "lgbtq", "trans", "pride", "leather", "bear", "drag"];
+const GENERIC_SEARCH_TERMS = new Set(["bar", "bars", "club", "clubs", "cafe", "cafes", "restaurant", "restaurants", "venue", "venues", "nightlife"]);
+const NIGHTLIFE_AMENITIES = ["bar", "pub", "nightclub", "community_centre"];
 
 function tagValue(tags: OpenStreetMapTags | undefined, ...keys: string[]) {
   return keys.map((key) => tags?.[key]).find((value): value is string => Boolean(value?.trim())) ?? null;
@@ -86,6 +94,16 @@ function mapOsmCategory(tags: OpenStreetMapTags | undefined) {
   return null;
 }
 
+function osmCategoryLabel(tags: OpenStreetMapTags | undefined) {
+  return compactJoin([
+    tagValue(tags, "amenity") ? `amenity=${tagValue(tags, "amenity")}` : null,
+    tagValue(tags, "shop") ? `shop=${tagValue(tags, "shop")}` : null,
+    tagValue(tags, "leisure") ? `leisure=${tagValue(tags, "leisure")}` : null,
+    tagValue(tags, "tourism") ? `tourism=${tagValue(tags, "tourism")}` : null,
+    tagValue(tags, "historic") ? `historic=${tagValue(tags, "historic")}` : null
+  ]) || "Uncategorized";
+}
+
 function inferSuggestedTags(tags: OpenStreetMapTags | undefined) {
   const suggested = new Set<string>();
   const lowerTags = Object.entries(tags ?? {})
@@ -99,6 +117,102 @@ function inferSuggestedTags(tags: OpenStreetMapTags | undefined) {
   if (lowerTags.includes("lgbt") || lowerTags.includes("gay")) suggested.add("Community");
 
   return Array.from(suggested);
+}
+
+function searchableText(tags: OpenStreetMapTags | undefined) {
+  return Object.entries(tags ?? {})
+    .map(([key, value]) => `${key} ${value ?? ""}`)
+    .join(" ")
+    .toLowerCase();
+}
+
+function meaningfulSearchTokens(searchTerm?: string | null) {
+  return (searchTerm ?? "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length > 2 && !GENERIC_SEARCH_TERMS.has(token));
+}
+
+function distanceInKilometers(fromLatitude?: number | null, fromLongitude?: number | null, toLatitude?: number | null, toLongitude?: number | null) {
+  if (fromLatitude === null || fromLatitude === undefined || fromLongitude === null || fromLongitude === undefined || toLatitude === null || toLatitude === undefined || toLongitude === null || toLongitude === undefined) {
+    return null;
+  }
+  const radius = 6371;
+  const latitudeDelta = (toLatitude - fromLatitude) * Math.PI / 180;
+  const longitudeDelta = (toLongitude - fromLongitude) * Math.PI / 180;
+  const fromRadians = fromLatitude * Math.PI / 180;
+  const toRadians = toLatitude * Math.PI / 180;
+  const a = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(fromRadians) * Math.cos(toRadians) * Math.sin(longitudeDelta / 2) ** 2;
+  return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function scoreOsmRelevance(element: OpenStreetMapRawElement, searchTerm?: string | null) {
+  const tags = element.tags;
+  const context = element._searchContext ?? {};
+  const reasons: string[] = [];
+  const name = tagValue(tags, "name", "name:en")?.toLowerCase() ?? "";
+  const website = tagValue(tags, "website", "contact:website")?.toLowerCase() ?? "";
+  const text = searchableText(tags);
+  const amenity = tagValue(tags, "amenity");
+  const shop = tagValue(tags, "shop");
+  const tourism = tagValue(tags, "tourism");
+  const historic = tagValue(tags, "historic");
+  const isNightlifeOrCommunity = NIGHTLIFE_AMENITIES.includes(amenity ?? "") || shop === "books";
+  const isGenericFood = ["restaurant", "cafe"].includes(amenity ?? "");
+  const latitude = element.lat ?? element.center?.lat ?? null;
+  const longitude = element.lon ?? element.center?.lon ?? null;
+  const distance = distanceInKilometers(context.centerLatitude, context.centerLongitude, latitude, longitude);
+  let score = 0;
+
+  const nameKeyword = QUEER_KEYWORDS.find((keyword) => name.includes(keyword));
+  if (nameKeyword) {
+    score += 45;
+    reasons.push(`Name contains "${nameKeyword}"`);
+  }
+
+  const tagKeyword = QUEER_KEYWORDS.find((keyword) => text.includes(keyword));
+  if (tagKeyword) {
+    score += 40;
+    reasons.push(`OSM tags mention "${tagKeyword}"`);
+  }
+
+  const websiteKeyword = QUEER_KEYWORDS.find((keyword) => website.includes(keyword));
+  if (websiteKeyword) {
+    score += 35;
+    reasons.push(`Website mentions "${websiteKeyword}"`);
+  }
+
+  const searchToken = meaningfulSearchTokens(searchTerm).find((token) => name.includes(token) || text.includes(token) || website.includes(token));
+  if (searchToken) {
+    score += 20;
+    reasons.push(`Matches search term "${searchToken}"`);
+  }
+
+  if (isNightlifeOrCommunity) {
+    score += 30;
+    reasons.push(`${osmCategoryLabel(tags)} is a nightlife or community venue`);
+  } else if (isGenericFood) {
+    score += 8;
+    reasons.push(`${osmCategoryLabel(tags)} may be relevant if queer-specific`);
+  }
+
+  if (distance !== null && distance <= 0.8 && isNightlifeOrCommunity) {
+    score += 25;
+    reasons.push("Very close to the searched neighborhood");
+  } else if (distance !== null && distance <= 1.6 && isNightlifeOrCommunity) {
+    score += 15;
+    reasons.push("Near the searched neighborhood");
+  }
+
+  if ((tourism || historic) && !nameKeyword && !tagKeyword && !websiteKeyword) {
+    score -= 20;
+  }
+
+  return {
+    level: score >= 75 ? "High relevance" : score >= MINIMUM_RELEVANCE_SCORE ? "Medium relevance" : "Low relevance",
+    reasons: reasons.length ? reasons : ["No queer-specific OSM signal found"],
+    score: Math.max(0, Math.min(score, 100))
+  };
 }
 
 export function mapOpenStreetMapElementToCandidate(element: OpenStreetMapRawElement): ImportedVenueCandidate {
@@ -119,6 +233,7 @@ export function mapOpenStreetMapElementToCandidate(element: OpenStreetMapRawElem
   const latitude = element.lat ?? element.center?.lat ?? null;
   const longitude = element.lon ?? element.center?.lon ?? null;
   const suggestedCategory = mapOsmCategory(tags);
+  const relevance = scoreOsmRelevance(element, context.searchTerm);
 
   return {
     address: address || tagValue(tags, "addr:full") || null,
@@ -142,9 +257,13 @@ export function mapOpenStreetMapElementToCandidate(element: OpenStreetMapRawElem
     sourceMetadata: {
       imported_via: "openstreetmap",
       osm_id: String(element.id),
+      osm_category: osmCategoryLabel(tags),
       osm_tags: tags as unknown as Json,
       osm_type: element.type,
       provider: "overpass",
+      relevance_level: relevance.level,
+      relevance_reasons: relevance.reasons,
+      relevance_score: relevance.score,
       search_query: context.searchTerm ?? null
     },
     sourceUrl: osmUrl(element),
@@ -171,16 +290,45 @@ function overpassEscape(value: string) {
 
 function buildOverpassQuery(boundingBox: string, searchTerm: string) {
   const escapedTerm = overpassEscape(searchTerm.trim());
-  const nameFilter = escapedTerm ? `["name"~"${escapedTerm}",i]` : "";
+  const searchTokenRegex = meaningfulSearchTokens(searchTerm).map(overpassEscape).join("|");
+  const queerRegex = QUEER_KEYWORDS.map(overpassEscape).join("|");
+  const exactNameQueries = escapedTerm
+    ? `
+      node(${boundingBox})["name"~"${escapedTerm}",i];
+      way(${boundingBox})["name"~"${escapedTerm}",i];
+      relation(${boundingBox})["name"~"${escapedTerm}",i];
+    `
+    : "";
+  const tokenNameQueries = searchTokenRegex
+    ? `
+      node(${boundingBox})["name"~"${searchTokenRegex}",i];
+      way(${boundingBox})["name"~"${searchTokenRegex}",i];
+      relation(${boundingBox})["name"~"${searchTokenRegex}",i];
+    `
+    : "";
   return `
     [out:json][timeout:25];
     (
-      node(${boundingBox})${nameFilter};
-      way(${boundingBox})${nameFilter};
-      relation(${boundingBox})${nameFilter};
-      node(${boundingBox})["amenity"~"bar|pub|nightclub|restaurant|cafe|theatre|community_centre",i];
-      way(${boundingBox})["amenity"~"bar|pub|nightclub|restaurant|cafe|theatre|community_centre",i];
-      relation(${boundingBox})["amenity"~"bar|pub|nightclub|restaurant|cafe|theatre|community_centre",i];
+      ${exactNameQueries}
+      ${tokenNameQueries}
+      node(${boundingBox})["name"~"${queerRegex}",i];
+      way(${boundingBox})["name"~"${queerRegex}",i];
+      relation(${boundingBox})["name"~"${queerRegex}",i];
+      node(${boundingBox})["description"~"${queerRegex}",i];
+      way(${boundingBox})["description"~"${queerRegex}",i];
+      relation(${boundingBox})["description"~"${queerRegex}",i];
+      node(${boundingBox})["website"~"${queerRegex}",i];
+      way(${boundingBox})["website"~"${queerRegex}",i];
+      relation(${boundingBox})["website"~"${queerRegex}",i];
+      node(${boundingBox})["operator"~"${queerRegex}",i];
+      way(${boundingBox})["operator"~"${queerRegex}",i];
+      relation(${boundingBox})["operator"~"${queerRegex}",i];
+      node(${boundingBox})["amenity"~"bar|pub|nightclub|restaurant|cafe|community_centre",i];
+      way(${boundingBox})["amenity"~"bar|pub|nightclub|restaurant|cafe|community_centre",i];
+      relation(${boundingBox})["amenity"~"bar|pub|nightclub|restaurant|cafe|community_centre",i];
+      node(${boundingBox})["shop"~"books",i];
+      way(${boundingBox})["shop"~"books",i];
+      relation(${boundingBox})["shop"~"books",i];
       node(${boundingBox})["lgbtq"];
       way(${boundingBox})["lgbtq"];
       relation(${boundingBox})["lgbtq"];
@@ -188,14 +336,17 @@ function buildOverpassQuery(boundingBox: string, searchTerm: string) {
       way(${boundingBox})["gay"];
       relation(${boundingBox})["gay"];
     );
-    out center 25;
+    out center 75;
   `;
 }
 
-function searchContext(input: OpenStreetMapSearchInput) {
+function searchContext(input: OpenStreetMapSearchInput, centerLatitude: number, centerLongitude: number) {
   return {
+    centerLatitude,
+    centerLongitude,
     city: input.city,
     country: input.country,
+    includeBroadResults: input.includeBroadResults,
     neighborhood: input.neighborhood,
     region: input.region,
     searchTerm: input.searchTerm
@@ -230,6 +381,8 @@ export async function searchOpenStreetMapCandidates(input: OpenStreetMapSearchIn
 
     const [south, north, west, east] = location.boundingbox;
     const boundingBox = `${south},${west},${north},${east}`;
+    const centerLatitude = (Number(south) + Number(north)) / 2;
+    const centerLongitude = (Number(west) + Number(east)) / 2;
     const overpassResponse = await fetch("https://overpass-api.de/api/interpreter", {
       body: new URLSearchParams({ data: buildOverpassQuery(boundingBox, input.searchTerm) }),
       headers: {
@@ -245,17 +398,19 @@ export async function searchOpenStreetMapCandidates(input: OpenStreetMapSearchIn
     }
 
     const payload = await overpassResponse.json() as { elements?: OpenStreetMapRawElement[] };
-    const context = searchContext(input);
+    const context = searchContext(input, centerLatitude, centerLongitude);
     const seen = new Set<string>();
     const elements = (payload.elements ?? [])
       .filter((element) => element.tags?.name)
       .map((element) => ({ ...element, _searchContext: context }))
+      .filter((element) => input.includeBroadResults || scoreOsmRelevance(element, input.searchTerm).score >= MINIMUM_RELEVANCE_SCORE)
       .filter((element) => {
         const key = `${element.type}/${element.id}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
-      });
+      })
+      .sort((left, right) => scoreOsmRelevance(right, input.searchTerm).score - scoreOsmRelevance(left, input.searchTerm).score);
 
     return { candidates: elements.map(mapOpenStreetMapElementToCandidate) };
   } catch (error) {
