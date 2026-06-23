@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Clock, ExternalLink, MapPinned, MapPin, Navigation, ShieldCheck, Stamp } from "lucide-react";
+import { Clock, ExternalLink, MapPin, Navigation, Phone, ShieldCheck, Stamp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,6 +39,11 @@ function directionsUrl(venue: NonNullable<Awaited<ReturnType<typeof getVenueBySl
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`;
 }
 
+function phoneUrl(phone: string) {
+  const normalized = phone.replace(/[^\d+]/g, "");
+  return normalized ? `tel:${normalized}` : null;
+}
+
 export async function generateMetadata({ params }: VenueDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
   const venue = await getVenueBySlug(slug);
@@ -61,6 +66,8 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
   const favoriteIds = await listFavoriteVenueIds(user?.id);
   const directions = directionsUrl(venue);
   const locationLabel = [venue.neighborhood, venue.city, venue.region, venue.country].filter(Boolean).join(", ");
+  const postalAddress = [venue.address, venue.postal_code].filter(Boolean).join(", ");
+  const phoneLink = venue.phone ? phoneUrl(venue.phone) : null;
 
   return (
     <section className="container py-10 md:py-16">
@@ -97,28 +104,6 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
               </div>
             </div>
           ) : null}
-          <Card className="bg-card/90 p-5">
-            <div className="flex items-start gap-3">
-              <MapPinned className="mt-1 h-5 w-5 text-sage" aria-hidden="true" />
-              <div>
-                <h2 className="font-serif text-2xl font-semibold">Location</h2>
-                <div className="mt-3 space-y-1 text-sm leading-6">
-                  {venue.address ? <p>{venue.address}</p> : null}
-                  {venue.neighborhood ? <p className="text-muted-foreground">{venue.neighborhood}</p> : null}
-                  <p className="text-muted-foreground">{[venue.city, venue.region, venue.country].filter(Boolean).join(", ")}</p>
-                </div>
-                {directions ? (
-                  <a className={cn(buttonVariants({ variant: "secondary" }), "mt-4")} href={directions} target="_blank" rel="noreferrer">
-                    <Navigation className="h-4 w-4" aria-hidden="true" />
-                    Get Directions
-                  </a>
-                ) : null}
-                {venue.latitude !== null && venue.longitude !== null ? (
-                  <p className="mt-3 text-xs text-muted-foreground">Coordinates available for map handoff.</p>
-                ) : null}
-              </div>
-            </div>
-          </Card>
         </div>
         <Card className="h-fit space-y-5 bg-card/90 p-5 lg:sticky lg:top-24">
           <div>
@@ -161,17 +146,22 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Location</p>
             <div className="mt-2 space-y-1 text-sm">
-              {venue.address ? <p>{venue.address}</p> : null}
+              {postalAddress ? <p>{postalAddress}</p> : null}
               {venue.neighborhood ? <p className="text-muted-foreground">{venue.neighborhood}</p> : null}
               <p className="text-muted-foreground">{[venue.city, venue.region, venue.country].filter(Boolean).join(", ")}</p>
             </div>
           </div>
-          {venue.latitude !== null && venue.longitude !== null ? (
+          {venue.phone ? (
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Map data</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {venue.latitude}, {venue.longitude}
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Phone</p>
+              {phoneLink ? (
+                <a className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline" href={phoneLink}>
+                  <Phone className="h-4 w-4" aria-hidden="true" />
+                  {venue.phone}
+                </a>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">{venue.phone}</p>
+              )}
             </div>
           ) : null}
         </Card>
