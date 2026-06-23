@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { approveStagedVenueAsNew, rejectStagedVenueCandidate, updateExistingVenueFromStagedCandidate, updateStagedVenueCandidate } from "@/features/admin/actions";
+import { AdminVenueLocationFields } from "@/features/admin/admin-venue-location-fields";
 import { venueCategoryLabel, venueCategoryOptions } from "@/lib/venue-categories";
 import { getStagedVenue, listImportCandidateMatches, listStagedCandidateAuditLogs, type CandidateAuditLog, type ImportCandidateMatch } from "@/services/admin";
 
@@ -34,6 +35,35 @@ function textFrom(...values: unknown[]) {
 function formValue(...values: unknown[]) {
   const value = textFrom(...values);
   return value === "Not provided" ? "" : value;
+}
+
+function numberOrNull(value: string) {
+  if (!value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeImportedLocation(values: { city: string; country: string; neighborhood: string; region: string }) {
+  const normalizedCountry = values.country === "US" || values.country === "USA" || values.country === "United States of America"
+    ? "United States"
+    : values.country === "CA"
+      ? "Canada"
+      : values.country;
+  const normalizedRegion = normalizedCountry === "United States" && values.region === "NY"
+    ? "New York"
+    : normalizedCountry === "Canada" && values.region === "QC"
+      ? "Quebec"
+      : values.region;
+  const normalizedCity = normalizedCountry === "United States" && normalizedRegion === "New York" && values.city === "New York"
+    ? "New York City"
+    : values.city;
+
+  return {
+    city: normalizedCity,
+    country: normalizedCountry,
+    neighborhood: values.neighborhood,
+    region: normalizedRegion
+  };
 }
 
 function feedbackMessage(updated?: string) {
@@ -243,6 +273,12 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
     suggestedTags: candidate.suggested_tags.join(", "),
     websiteUrl: formValue(metadata.website_url, raw.website_url)
   };
+  const normalizedLocation = normalizeImportedLocation({
+    city: values.city,
+    country: values.country,
+    neighborhood: values.neighborhood,
+    region: values.region
+  });
 
   return (
     <div className="space-y-6">
@@ -324,14 +360,22 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
                     {venueCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </label>
-                <TextInput label="Address" name="address" value={values.address} />
-                <TextInput label="Neighborhood" name="neighborhood" value={values.neighborhood} />
-                <TextInput label="City" name="city" value={values.city} />
-                <TextInput label="Region" name="region" value={values.region} />
-                <TextInput label="Country" name="country" value={values.country} />
+                <div className="md:col-span-2">
+                  <h3 className="text-sm font-semibold">Location</h3>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Use structured location fields when possible. Unknown imported cities or neighborhoods stay editable as custom values.
+                  </p>
+                  <AdminVenueLocationFields
+                    address={values.address}
+                    city={normalizedLocation.city}
+                    country={normalizedLocation.country}
+                    latitude={numberOrNull(values.latitude)}
+                    longitude={numberOrNull(values.longitude)}
+                    neighborhood={normalizedLocation.neighborhood}
+                    region={normalizedLocation.region}
+                  />
+                </div>
                 <TextInput label="Postal code" name="postalCode" value={values.postalCode} />
-                <TextInput label="Latitude" name="latitude" value={values.latitude} />
-                <TextInput label="Longitude" name="longitude" value={values.longitude} />
                 <TextInput label="Website URL" name="websiteUrl" value={values.websiteUrl} />
                 <TextInput label="Phone" name="phone" value={values.phone} />
                 <TextInput label="Image URL" name="imageUrl" value={values.imageUrl} />
