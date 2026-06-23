@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { AdminVenueLocationFields } from "@/features/admin/admin-venue-location-fields";
 import {
   updateVenueFeatured,
   updateVenueIdentityClassification,
@@ -142,29 +143,15 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
               <section id="location">
                 <h3 className="font-serif text-2xl font-semibold">Location</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Coordinates power future map and directions experiences. Leave blank if unknown.</p>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <Field label="Address">
-                    <input name="address" defaultValue={venue.address ?? ""} className={InputClass()} />
-                  </Field>
-                  <Field label="Neighborhood">
-                    <input name="neighborhood" defaultValue={venue.neighborhood ?? ""} className={InputClass()} />
-                  </Field>
-                  <Field label="City">
-                    <input name="city" defaultValue={venue.city} className={InputClass()} />
-                  </Field>
-                  <Field label="State / Province / Territory">
-                    <input name="region" defaultValue={venue.region ?? ""} className={InputClass()} />
-                  </Field>
-                  <Field label="Country">
-                    <input name="country" defaultValue={venue.country} className={InputClass()} />
-                  </Field>
-                  <Field label="Latitude">
-                    <input name="latitude" defaultValue={venue.latitude ?? ""} inputMode="decimal" className={InputClass()} />
-                  </Field>
-                  <Field label="Longitude">
-                    <input name="longitude" defaultValue={venue.longitude ?? ""} inputMode="decimal" className={InputClass()} />
-                  </Field>
-                </div>
+                <AdminVenueLocationFields
+                  address={venue.address ?? ""}
+                  city={venue.city}
+                  country={venue.country}
+                  latitude={venue.latitude}
+                  longitude={venue.longitude}
+                  neighborhood={venue.neighborhood ?? ""}
+                  region={venue.region ?? ""}
+                />
               </section>
 
               <section>
