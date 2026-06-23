@@ -16,6 +16,13 @@ function getAdapter(sourceType: string) {
   return adapters.find((adapter) => adapter.sourceType === sourceType) ?? csvImportAdapter;
 }
 
+function auditActionForSource(sourceType: string) {
+  if (sourceType === "google_places") return "google_places_import_staged";
+  if (sourceType === "openstreetmap") return "openstreetmap_import_staged";
+  if (sourceType === "wikidata") return "wikidata_import_staged";
+  return "curated_csv_import_staged";
+}
+
 function validateCandidate(candidate: ImportedVenueCandidate, row: number) {
   const errors: string[] = [];
   if (!candidate.name?.trim()) errors.push("Name is required.");
@@ -121,7 +128,7 @@ export async function stageImportedVenueCandidates(input: ImportAdapterInput & {
     .eq("id", batch.id);
 
   await supabase.from("audit_logs").insert({
-    action: input.sourceType === "google_places" ? "google_places_import_staged" : "curated_csv_import_staged",
+    action: auditActionForSource(input.sourceType),
     actor_id: input.createdBy,
     metadata: {
       invalidRows: String(invalidCandidates.length),

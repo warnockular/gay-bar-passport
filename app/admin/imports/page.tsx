@@ -31,6 +31,15 @@ export default async function AdminImportsPage({ searchParams }: AdminImportsPag
         </Link>
       </Card>
       <Card className="mt-8 bg-card/90 p-6">
+        <h2 className="font-serif text-3xl font-semibold">OpenStreetMap preview</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Search OpenStreetMap with Nominatim and Overpass, preview candidates, then stage selected results for review.
+        </p>
+        <Link className="mt-5 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" href="/admin/imports/osm">
+          Open OpenStreetMap import
+        </Link>
+      </Card>
+      <Card className="mt-8 bg-card/90 p-6">
         <h2 className="font-serif text-3xl font-semibold">Stage curated CSV</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Paste or upload curated venue candidates. Valid rows are stored in import staging only and will not appear publicly.

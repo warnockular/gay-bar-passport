@@ -758,6 +758,38 @@ export async function importSelectedGooglePlacesToStaging(formData: FormData) {
   redirect(`/admin/imports/${result.batchId}?updated=google-staged`);
 }
 
+export async function importSelectedOpenStreetMapToStaging(formData: FormData) {
+  const admin = await requireAdminProfile();
+  const selectedResults = formData.getAll("selectedOsmPlace").map(String);
+  if (!selectedResults.length) redirect("/admin/imports/osm?error=no-selection");
+
+  const rawResults = selectedResults.flatMap((value) => {
+    try {
+      return [JSON.parse(value) as unknown];
+    } catch {
+      return [];
+    }
+  });
+  if (!rawResults.length) redirect("/admin/imports/osm?error=invalid-selection");
+
+  const sourceName = String(formData.get("sourceName") ?? "").trim() || "OpenStreetMap import";
+  const result = await stageImportedVenueCandidates({
+    createdBy: admin.id,
+    rawResults,
+    sourceName,
+    sourceType: "openstreetmap"
+  });
+
+  if (result.error) {
+    redirect(result.batchId ? `/admin/imports/${result.batchId}?error=${encodeURIComponent(result.error)}` : `/admin/imports/osm?error=${encodeURIComponent(result.error)}`);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/imports");
+  if (result.batchId) revalidatePath(`/admin/imports/${result.batchId}`);
+  redirect(`/admin/imports/${result.batchId}?updated=osm-staged`);
+}
+
 export async function reviewStagedVenue(stagedVenueId: string, batchId: string, status: ImportApprovalStatus) {
   const admin = await requireAdminProfile();
   if (!["approved", "rejected"].includes(status)) return;
