@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { approveStagedVenueAsNew, rejectStagedVenueCandidate, updateExistingVenueFromStagedCandidate, updateStagedVenueCandidate } from "@/features/admin/actions";
 import { venueCategoryLabel, venueCategoryOptions } from "@/lib/venue-categories";
-import { getStagedVenue, listImportCandidateMatches, type ImportCandidateMatch } from "@/services/admin";
+import { getStagedVenue, listImportCandidateMatches, listStagedCandidateAuditLogs, type CandidateAuditLog, type ImportCandidateMatch } from "@/services/admin";
 
 type StagedCandidatePageProps = {
   params: Promise<{ candidateId: string }>;
@@ -46,6 +46,31 @@ function feedbackMessage(updated?: string) {
 
 function humanStatus(value: string) {
   return value.split("_").map((part) => part.slice(0, 1).toUpperCase() + part.slice(1)).join(" ");
+}
+
+function actionLabel(action: string) {
+  const labels: Record<string, string> = {
+    import_candidate_approved_as_new_venue: "Approved as new venue",
+    import_candidate_archived: "Archived candidate",
+    import_candidate_edited: "Edited candidate",
+    import_candidate_rejected: "Rejected candidate",
+    import_candidate_updated_existing_venue: "Updated existing venue",
+    venue_import_approved: "Approved candidate",
+    venue_import_rejected: "Rejected candidate"
+  };
+  return labels[action] ?? humanStatus(action);
+}
+
+function metadataSummary(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const entries = Object.entries(metadata).filter(([key, value]) =>
+    value !== null
+    && value !== undefined
+    && value !== ""
+    && !key.toLowerCase().endsWith("id")
+  );
+  if (!entries.length) return null;
+  return entries.map(([key, value]) => `${humanStatus(key)}: ${typeof value === "string" ? humanStatus(value) : String(value)}`).join(" · ");
 }
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -94,19 +119,35 @@ function SourceDetails({ candidate, raw }: { candidate: NonNullable<Awaited<Retu
 
 function MatchDifference({ difference }: { difference: ImportCandidateMatch["differences"][number] }) {
   return (
-    <div className="rounded-md border border-border bg-background/60 p-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{difference.field}</p>
-      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
-        <div>
-          <p className="font-semibold">Current</p>
-          <p className="mt-1 break-words text-muted-foreground">{difference.currentValue}</p>
-        </div>
-        <div>
-          <p className="font-semibold">Imported</p>
-          <p className="mt-1 break-words">{difference.importedValue}</p>
-        </div>
-      </div>
+    <div className="rounded-md border border-border bg-background/60 p-3 text-xs">
+      <p className="font-semibold">{difference.field}</p>
+      <p className="mt-1 break-words text-muted-foreground">Current: {difference.currentValue}</p>
+      <p className="mt-1 break-words">Imported: {difference.importedValue}</p>
     </div>
+  );
+}
+
+function AuditHistory({ logs }: { logs: CandidateAuditLog[] }) {
+  return (
+    <Card className="bg-card/90 p-5">
+      <h2 className="font-serif text-2xl font-semibold">Audit History</h2>
+      {logs.length ? (
+        <ol className="mt-4 space-y-3">
+          {logs.map((log) => (
+            <li key={log.id} className="rounded-md border border-border bg-background/60 p-3 text-sm">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="font-semibold">{actionLabel(log.action)}</p>
+                <time className="text-xs text-muted-foreground">{new Date(log.created_at).toLocaleString()}</time>
+              </div>
+              <p className="mt-1 text-muted-foreground">By {log.actor?.display_name ?? "System"}</p>
+              {metadataSummary(log.metadata) ? <p className="mt-2 text-xs text-muted-foreground">{metadataSummary(log.metadata)}</p> : null}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-4 text-sm text-muted-foreground">No audit events recorded for this candidate yet.</p>
+      )}
+    </Card>
   );
 }
 
@@ -168,7 +209,11 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
   const candidate = await getStagedVenue(candidateId);
   if (!candidate) notFound();
 
-  const matches = (await listImportCandidateMatches(candidate))
+  const [matches, auditLogs] = await Promise.all([
+    listImportCandidateMatches(candidate),
+    listStagedCandidateAuditLogs(candidate.id)
+  ]);
+  const topMatches = matches
     .filter((match) => match.confidenceScore >= 30)
     .slice(0, 3);
   const raw = asObject(candidate.raw_data);
@@ -177,8 +222,8 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
   const feedback = feedbackMessage(query.updated);
   const categoryValue = venueCategoryOptions.some((option) => option.value === candidate.suggested_category) ? candidate.suggested_category ?? "" : "";
   const category = categoryValue ? venueCategoryLabel(categoryValue) : textFrom(raw.category);
-  const canReview = candidate.approval_status !== "approved";
-  const isEditing = query.edit === "1" && canReview;
+  const isPending = candidate.approval_status === "pending";
+  const isEditing = query.edit === "1" && isPending;
   const values = {
     address: formValue(address.address, metadata.address, raw.address),
     city: formValue(candidate.city, raw.city, address.city),
@@ -214,21 +259,25 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
             <p className="mt-2 text-sm text-muted-foreground">{category} · {textFrom(candidate.city, raw.city, address.city)}, {textFrom(candidate.country, raw.country, address.country)}</p>
           </div>
           <div className="grid content-start gap-2 sm:grid-cols-3 lg:w-96">
-            {canReview ? (
+            {isPending ? (
               <Link className="rounded-md border border-border bg-background/70 px-4 py-2 text-center text-sm font-semibold hover:bg-muted" href={isEditing ? `/admin/imports/staged/${candidate.id}` : `/admin/imports/staged/${candidate.id}?edit=1`}>
                 {isEditing ? "Cancel Edit" : "Edit Candidate"}
               </Link>
             ) : null}
-            <form action={approveStagedVenueAsNew.bind(null, candidate.id)}>
-              <button className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
-                Approve New
-              </button>
-            </form>
-            <form action={rejectStagedVenueCandidate.bind(null, candidate.id)}>
-              <button className="w-full rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
-                Reject
-              </button>
-            </form>
+            {isPending ? (
+              <>
+                <form action={approveStagedVenueAsNew.bind(null, candidate.id)}>
+                  <button className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">
+                    Approve New
+                  </button>
+                </form>
+                <form action={rejectStagedVenueCandidate.bind(null, candidate.id)}>
+                  <button className="w-full rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted" type="submit">
+                    Reject
+                  </button>
+                </form>
+              </>
+            ) : null}
           </div>
         </div>
       </Card>
@@ -242,8 +291,26 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
         </p>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className={isPending ? "grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]" : "grid gap-5"}>
         <main className="space-y-5">
+          {!isPending ? (
+            <Card className="bg-card/90 p-5">
+              <h2 className="font-serif text-2xl font-semibold">Review Outcome</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This candidate is {humanStatus(candidate.approval_status).toLowerCase()} and is now read-only history.
+              </p>
+              {candidate.approvedVenue ? (
+                <Link className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" href={`/admin/venues/${candidate.approvedVenue.id}`}>
+                  Open venue: {candidate.approvedVenue.name}
+                </Link>
+              ) : candidate.matchedVenue ? (
+                <Link className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" href={`/admin/venues/${candidate.matchedVenue.id}`}>
+                  Open matched venue: {candidate.matchedVenue.name}
+                </Link>
+              ) : null}
+            </Card>
+          ) : null}
+
           {isEditing ? (
             <Card className="bg-card/90 p-5">
               <h2 className="font-serif text-2xl font-semibold">Edit Candidate</h2>
@@ -280,57 +347,55 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
             </Card>
           ) : null}
 
-          <Card className="bg-card/90 p-5">
-            <h2 className="font-serif text-2xl font-semibold">Candidate Details</h2>
-            <dl className="mt-4">
-              <DetailRow label="Address" value={textFrom(address.address, metadata.address, raw.address)} />
-              <DetailRow label="Neighborhood" value={textFrom(address.neighborhood, metadata.neighborhood, raw.neighborhood)} />
-              <DetailRow label="City" value={textFrom(candidate.city, raw.city, address.city)} />
-              <DetailRow label="Region" value={textFrom(address.region, metadata.region, raw.region)} />
-              <DetailRow label="Country" value={textFrom(candidate.country, raw.country, address.country)} />
-              <DetailRow label="Postal code" value={textFrom(candidate.postal_code, address.postal_code, raw.postal_code)} />
-              <DetailRow label="Phone" value={textFrom(candidate.phone, raw.phone)} />
-              <DetailRow label="Website" value={textFrom(metadata.website_url, raw.website_url)} />
-              <DetailRow label="Hours" value={textFrom(metadata.opening_hours, raw.opening_hours)} />
-              <DetailRow label="Suggested tags" value={candidate.suggested_tags.length ? candidate.suggested_tags.join(", ") : "Not provided"} />
-            </dl>
-          </Card>
+          {isPending ? (
+            <Card className="bg-card/90 p-5">
+              <h2 className="font-serif text-2xl font-semibold">Candidate Details</h2>
+              <dl className="mt-4">
+                <DetailRow label="Address" value={textFrom(address.address, metadata.address, raw.address)} />
+                <DetailRow label="Neighborhood" value={textFrom(address.neighborhood, metadata.neighborhood, raw.neighborhood)} />
+                <DetailRow label="City" value={textFrom(candidate.city, raw.city, address.city)} />
+                <DetailRow label="Region" value={textFrom(address.region, metadata.region, raw.region)} />
+                <DetailRow label="Country" value={textFrom(candidate.country, raw.country, address.country)} />
+                <DetailRow label="Postal code" value={textFrom(candidate.postal_code, address.postal_code, raw.postal_code)} />
+                <DetailRow label="Phone" value={textFrom(candidate.phone, raw.phone)} />
+                <DetailRow label="Website" value={textFrom(metadata.website_url, raw.website_url)} />
+                <DetailRow label="Hours" value={textFrom(metadata.opening_hours, raw.opening_hours)} />
+                <DetailRow label="Suggested tags" value={candidate.suggested_tags.length ? candidate.suggested_tags.join(", ") : "Not provided"} />
+              </dl>
+            </Card>
+          ) : null}
 
-          <section className="space-y-4">
-            <div>
-              <h2 className="font-serif text-3xl font-semibold">Existing Venue Matches</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Review the strongest matches first. Low-confidence matches are hidden from this page.</p>
-            </div>
-            {matches.length ? (
-              matches.map((match) => <MatchCard key={match.venue.id} canReview={canReview} candidateId={candidate.id} match={match} />)
-            ) : (
-              <Card className="bg-card/90 p-5 text-sm text-muted-foreground">No likely existing venue matches above 30% confidence.</Card>
-            )}
-          </section>
+          {isPending ? (
+            <section className="space-y-4">
+              <div>
+                <h2 className="font-serif text-3xl font-semibold">Existing Venue Matches</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Review the strongest matches first. Low-confidence matches are hidden from this page.</p>
+              </div>
+              {topMatches.length ? (
+                topMatches.map((match) => <MatchCard key={match.venue.id} canReview={isPending} candidateId={candidate.id} match={match} />)
+              ) : (
+                <Card className="bg-card/90 p-5 text-sm text-muted-foreground">No likely existing venue matches above 30% confidence.</Card>
+              )}
+            </section>
+          ) : null}
+
+          {!isPending ? <AuditHistory logs={auditLogs} /> : null}
 
           <SourceDetails candidate={candidate} raw={candidate.raw_data} />
         </main>
 
-        <aside className="space-y-5">
-          <Card className="bg-card/90 p-5">
-            <h2 className="font-serif text-2xl font-semibold">Metadata</h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div><dt className="font-semibold">Batch</dt><dd className="text-muted-foreground">{candidate.importBatch ? <Link className="text-primary hover:underline" href={`/admin/imports/${candidate.importBatch.id}`}>{candidate.importBatch.source_name}</Link> : "Unknown"}</dd></div>
-              <div><dt className="font-semibold">Approval status</dt><dd className="text-muted-foreground">{humanStatus(candidate.approval_status)}</dd></div>
-              <div><dt className="font-semibold">Last edited</dt><dd className="text-muted-foreground">{candidate.edited_at ? `${new Date(candidate.edited_at).toLocaleString()} by ${candidate.editedBy?.display_name ?? "Admin user"}` : "Not edited"}</dd></div>
-            </dl>
-            {candidate.approvedVenue ? (
-              <Link className="mt-4 block rounded-md border border-sage/30 bg-sage/10 px-3 py-2 text-sm font-semibold text-sage hover:bg-sage/15" href={`/admin/venues/${candidate.approvedVenue.id}`}>
-                Approved venue: {candidate.approvedVenue.name}
-              </Link>
-            ) : null}
-            {candidate.matchedVenue ? (
-              <Link className="mt-3 block rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" href={`/admin/venues/${candidate.matchedVenue.id}`}>
-                Matched venue: {candidate.matchedVenue.name}
-              </Link>
-            ) : null}
-          </Card>
-        </aside>
+        {isPending ? (
+          <aside className="space-y-5">
+            <Card className="bg-card/90 p-5">
+              <h2 className="font-serif text-2xl font-semibold">Metadata</h2>
+              <dl className="mt-4 space-y-3 text-sm">
+                <div><dt className="font-semibold">Batch</dt><dd className="text-muted-foreground">{candidate.importBatch ? <Link className="text-primary hover:underline" href={`/admin/imports/${candidate.importBatch.id}`}>{candidate.importBatch.source_name}</Link> : "Unknown"}</dd></div>
+                <div><dt className="font-semibold">Approval status</dt><dd className="text-muted-foreground">{humanStatus(candidate.approval_status)}</dd></div>
+                <div><dt className="font-semibold">Last edited</dt><dd className="text-muted-foreground">{candidate.edited_at ? `${new Date(candidate.edited_at).toLocaleString()} by ${candidate.editedBy?.display_name ?? "Admin user"}` : "Not edited"}</dd></div>
+              </dl>
+            </Card>
+          </aside>
+        ) : null}
       </div>
     </div>
   );

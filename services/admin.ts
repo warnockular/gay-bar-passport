@@ -108,6 +108,9 @@ export type AdminAuditLog = Tables<"audit_logs"> & {
   venue?: Pick<Tables<"venues">, "city" | "country" | "id" | "name"> | null;
   venueRefs: Record<string, Pick<Tables<"venues">, "city" | "country" | "id" | "name">>;
 };
+export type CandidateAuditLog = Tables<"audit_logs"> & {
+  actor?: Pick<Tables<"profiles">, "display_name" | "id"> | null;
+};
 
 async function count(table: keyof Pick<TablesMap, "favorites" | "follows" | "import_batches" | "journal_comments" | "journal_entries" | "moderation_flags" | "passport_stamps" | "profiles" | "venues" | "venue_claims" | "venue_bulk_operation_drafts" | "venue_duplicate_candidates" | "venue_import_staging" | "visits">, filter?: (query: any) => any) {
   const supabase = await createSupabaseServerClient();
@@ -724,6 +727,28 @@ export async function listAuditLogs(filters: AuditLogFilters = {}) {
     venue: log.target_type === "venue" && log.target_id ? venuesById.get(log.target_id) ?? null : null,
     venueRefs: Object.fromEntries([...venuesById.entries()])
   })) satisfies AdminAuditLog[];
+}
+
+export async function listStagedCandidateAuditLogs(candidateId: string): Promise<CandidateAuditLog[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("audit_logs")
+    .select("*")
+    .eq("target_type", "venue_import_staging")
+    .eq("target_id", candidateId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  const logs = (data ?? []) as Tables<"audit_logs">[];
+  const actorIds = Array.from(new Set(logs.map((log) => log.actor_id).filter(Boolean))) as string[];
+  const { data: profiles } = actorIds.length
+    ? await supabase.from("profiles").select("id, display_name").in("id", actorIds)
+    : { data: [] };
+  const profilesById = new Map(((profiles ?? []) as Pick<Tables<"profiles">, "display_name" | "id">[]).map((profile) => [profile.id, profile]));
+
+  return logs.map((log) => ({
+    ...log,
+    actor: log.actor_id ? profilesById.get(log.actor_id) ?? null : null
+  }));
 }
 
 export async function listAdminNotifications() {
