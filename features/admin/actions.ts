@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdminProfile } from "@/lib/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { stageImportedVenueCandidates } from "@/services/imports/import-service";
 import { travelerTagOptions, travelerTagSlugs } from "@/lib/traveler-tags";
 import { venueCategoryValues } from "@/lib/venue-categories";
 import type { Database, Tables } from "@/types/database";
@@ -20,7 +21,6 @@ type ImportApprovalStatus = Tables<"venue_import_staging">["approval_status"];
 type VenueBulkOperationType = Tables<"venue_bulk_operation_drafts">["operation_type"];
 type VenueClaimStatus = Tables<"venue_claims">["status"];
 type VenueDuplicateCandidateLevel = Tables<"venue_duplicate_candidates">["confidence_level"];
-type CsvImportError = { errors: string[]; row: number; values: Record<string, string> };
 
 const verificationScores: Record<VenueVerificationStatus, number> = {
   admin_verified: 100,
@@ -66,60 +66,6 @@ async function refreshImportBatchCounts(batchId: string) {
 
 function normalizeCsvHeader(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-}
-
-function parseCsvRows(csv: string) {
-  const rows: string[][] = [];
-  let current = "";
-  let row: string[] = [];
-  let quoted = false;
-
-  for (let index = 0; index < csv.length; index += 1) {
-    const char = csv[index];
-    const next = csv[index + 1];
-
-    if (char === '"' && quoted && next === '"') {
-      current += '"';
-      index += 1;
-    } else if (char === '"') {
-      quoted = !quoted;
-    } else if (char === "," && !quoted) {
-      row.push(current.trim());
-      current = "";
-    } else if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && next === "\n") index += 1;
-      row.push(current.trim());
-      if (row.some((cell) => cell.length > 0)) rows.push(row);
-      row = [];
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-
-  row.push(current.trim());
-  if (row.some((cell) => cell.length > 0)) rows.push(row);
-  return rows;
-}
-
-function parseCsvObjects(csv: string) {
-  const rows = parseCsvRows(csv);
-  if (rows.length < 2) return [];
-  const headers = rows[0].map(normalizeCsvHeader);
-  return rows.slice(1).map((cells, index) => ({
-    rowNumber: index + 2,
-    values: Object.fromEntries(headers.map((header, cellIndex) => [header, cells[cellIndex]?.trim() ?? ""]))
-  }));
-}
-
-function parseOptionalNumber(value: string, label: string, errors: string[]) {
-  if (!value) return null;
-  const number = Number(value);
-  if (Number.isNaN(number)) {
-    errors.push(`${label} must be numeric.`);
-    return null;
-  }
-  return number;
 }
 
 function parseSuggestedTags(value: string) {
@@ -763,141 +709,21 @@ export async function importCuratedCsvToStaging(formData: FormData) {
     redirect("/admin/imports?error=missing-csv");
   }
 
-  const rows = parseCsvObjects(csv);
-  const invalidRows: CsvImportError[] = [];
-  const stagedRows: Array<Database["public"]["Tables"]["venue_import_staging"]["Insert"]> = [];
-
-  for (const row of rows) {
-    const values = row.values;
-    const errors: string[] = [];
-    const name = values.name?.trim() ?? "";
-    const city = values.city?.trim() ?? "";
-    const country = values.country?.trim() ?? "";
-    const latitude = parseOptionalNumber(values.latitude ?? "", "Latitude", errors);
-    const longitude = parseOptionalNumber(values.longitude ?? "", "Longitude", errors);
-    const confidenceScore = parseOptionalNumber(values.confidence_score ?? "", "Confidence score", errors);
-    const suggestedCategory = categoryFromCsv(values.category ?? "");
-
-    if (!name) errors.push("Name is required.");
-    if (!city) errors.push("City is required.");
-    if (!country) errors.push("Country is required.");
-    if (confidenceScore !== null && (confidenceScore < 0 || confidenceScore > 100)) errors.push("Confidence score must be between 0 and 100.");
-
-    if (errors.length) {
-      invalidRows.push({ errors, row: row.rowNumber, values });
-      continue;
-    }
-
-    const rowSource = values.source?.trim() || sourceType;
-    const suggestedTags = parseSuggestedTags(values.suggested_tags ?? "");
-    const addressComponents = {
-      address: values.address || null,
-      city,
-      country,
-      neighborhood: values.neighborhood || null,
-      postal_code: values.postal_code || null,
-      region: values.region || null
-    };
-    const sourceMetadata = {
-      address: values.address || null,
-      category: values.category || null,
-      description: values.description || null,
-      image_url: values.image_url || null,
-      imported_via: "curated_csv",
-      neighborhood: values.neighborhood || null,
-      opening_hours: values.opening_hours || null,
-      region: values.region || null,
-      source_name: sourceName,
-      source_type: sourceType,
-      website_url: values.website_url || null
-    };
-
-    stagedRows.push({
-      address_components: addressComponents,
-      city,
-      confidence_score: confidenceScore,
-      country,
-      import_batch_id: "",
-      last_seen_at: new Date().toISOString(),
-      latitude,
-      longitude,
-      name,
-      phone: values.phone || null,
-      postal_code: values.postal_code || null,
-      raw_data: values,
-      review_notes: values.description ? `Imported description: ${values.description}` : null,
-      source: rowSource,
-      source_id: values.source_id || null,
-      source_metadata: sourceMetadata,
-      source_url: values.source_url || null,
-      suggested_category: suggestedCategory ?? (values.category || null),
-      suggested_tags: suggestedTags
-    });
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { data: batchData, error: batchError } = await supabase
-    .from("import_batches")
-    .insert({
-      completed_at: new Date().toISOString(),
-      created_by: admin.id,
-      error_details: invalidRows,
-      imported_count: 0,
-      invalid_count: invalidRows.length,
-      rejected_count: invalidRows.length,
-      source_name: sourceName,
-      source_type: sourceType,
-      staged_count: stagedRows.length,
-      started_at: new Date().toISOString(),
-      status: "completed",
-      total_count: rows.length
-    } as never)
-    .select("id")
-    .single();
-
-  if (batchError || !batchData) {
-    redirect(`/admin/imports?error=${encodeURIComponent(batchError?.message ?? "batch-create-failed")}`);
-  }
-
-  const batch = batchData as Pick<Tables<"import_batches">, "id">;
-  const rowsForInsert = stagedRows.map((row) => ({ ...row, import_batch_id: batch.id }));
-
-  if (rowsForInsert.length) {
-    const { error: stagingError } = await supabase.from("venue_import_staging").insert(rowsForInsert as never);
-    if (stagingError) {
-      await supabase
-        .from("import_batches")
-        .update({
-          completed_at: new Date().toISOString(),
-          error_details: [{ errors: [`Staging insert failed: ${stagingError.message}`], row: 0, values: {} }, ...invalidRows],
-          invalid_count: invalidRows.length,
-          staged_count: 0,
-          status: "failed"
-        } as never)
-        .eq("id", batch.id);
-      redirect(`/admin/imports/${batch.id}?error=${encodeURIComponent(stagingError.message)}`);
-    }
-  }
-
-  await supabase
-    .from("import_batches")
-    .update({
-      imported_count: rowsForInsert.length,
-      staged_count: rowsForInsert.length
-    } as never)
-    .eq("id", batch.id);
-
-  await logAudit(admin.id, "curated_csv_import_staged", "import_batch", batch.id, {
-    invalidRows: String(invalidRows.length),
+  const result = await stageImportedVenueCandidates({
+    createdBy: admin.id,
+    csv,
     sourceName,
-    sourceType,
-    stagedRows: String(rowsForInsert.length),
-    totalRows: String(rows.length)
+    sourceType
   });
+
+  if (result.error) {
+    redirect(result.batchId ? `/admin/imports/${result.batchId}?error=${encodeURIComponent(result.error)}` : `/admin/imports?error=${encodeURIComponent(result.error)}`);
+  }
+
   revalidatePath("/admin");
   revalidatePath("/admin/imports");
-  revalidatePath(`/admin/imports/${batch.id}`);
-  redirect(`/admin/imports/${batch.id}?updated=csv-staged`);
+  if (result.batchId) revalidatePath(`/admin/imports/${result.batchId}`);
+  redirect(`/admin/imports/${result.batchId}?updated=csv-staged`);
 }
 
 export async function reviewStagedVenue(stagedVenueId: string, batchId: string, status: ImportApprovalStatus) {
