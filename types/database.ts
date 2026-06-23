@@ -375,6 +375,9 @@ export type Database = {
       venue_import_staging: {
         Row: {
           address_components: Json;
+          approved_at: string | null;
+          approved_by: string | null;
+          approved_venue_id: string | null;
           approval_status: Database["public"]["Enums"]["import_approval_status"];
           city: string | null;
           confidence_score: number | null;
@@ -406,6 +409,9 @@ export type Database = {
         };
         Insert: {
           address_components?: Json;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          approved_venue_id?: string | null;
           approval_status?: Database["public"]["Enums"]["import_approval_status"];
           city?: string | null;
           confidence_score?: number | null;
@@ -437,6 +443,9 @@ export type Database = {
         };
         Update: {
           address_components?: Json;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          approved_venue_id?: string | null;
           approval_status?: Database["public"]["Enums"]["import_approval_status"];
           city?: string | null;
           confidence_score?: number | null;
@@ -467,6 +476,20 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "venue_import_staging_approved_by_fkey";
+            columns: ["approved_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_import_staging_approved_venue_id_fkey";
+            columns: ["approved_venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "venue_import_staging_duplicate_existing_venue_id_fkey";
             columns: ["duplicate_existing_venue_id"];
@@ -1339,7 +1362,7 @@ export type Database = {
       };
     };
     Enums: {
-      import_approval_status: "pending" | "approved" | "rejected" | "merged";
+      import_approval_status: "pending" | "approved" | "rejected" | "merged" | "archived";
       import_batch_status: "pending" | "processing" | "completed" | "failed";
       import_duplicate_status: "unique" | "possible_duplicate" | "confirmed_duplicate";
       venue_claim_status: "pending" | "approved" | "rejected" | "cancelled";

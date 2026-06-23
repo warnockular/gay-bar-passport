@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { mergeStagedVenue, reviewStagedVenue } from "@/features/admin/actions";
+import { mergeStagedVenue, rejectStagedVenueCandidate } from "@/features/admin/actions";
 import { getImportBatch, getImportBatchStats, listAdminVenues, listStagedVenues } from "@/services/admin";
 
 type AdminImportBatchPageProps = {
@@ -97,11 +98,11 @@ export default async function AdminImportBatchPage({ params, searchParams }: Adm
                   <JsonPreview value={venue.raw_data} />
                 </div>
                 <div className="w-full space-y-3 md:w-72">
+                  <Link className="block rounded-md bg-primary px-3 py-2 text-center text-sm font-semibold text-primary-foreground" href={`/admin/imports/staged/${venue.id}`}>
+                    Review Candidate
+                  </Link>
                   <div className="flex flex-wrap gap-2">
-                    <form action={reviewStagedVenue.bind(null, venue.id, batch.id, "approved")}>
-                      <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Approve</button>
-                    </form>
-                    <form action={reviewStagedVenue.bind(null, venue.id, batch.id, "rejected")}>
+                    <form action={rejectStagedVenueCandidate.bind(null, venue.id)}>
                       <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Reject</button>
                     </form>
                   </div>

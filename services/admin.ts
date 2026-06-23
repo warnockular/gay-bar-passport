@@ -41,7 +41,10 @@ export type AdminVenueTag = Pick<Tables<"tags">, "id" | "name" | "slug">;
 export type AdminImportBatch = Tables<"import_batches">;
 export type AdminBulkOperationDraft = Tables<"venue_bulk_operation_drafts">;
 export type AdminStagedVenue = Tables<"venue_import_staging"> & {
+  approvedVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country" | "slug"> | null;
   duplicateVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country"> | null;
+  importBatch?: Pick<Tables<"import_batches">, "id" | "source_name" | "source_type" | "created_at"> | null;
+  matchedVenue?: Pick<Tables<"venues">, "id" | "name" | "city" | "country" | "slug"> | null;
 };
 export type AdminDuplicateCandidate = AdminStagedVenue & {
   importBatch?: Pick<Tables<"import_batches">, "id" | "source_name" | "source_type"> | null;
@@ -320,17 +323,17 @@ export async function listDuplicateCandidates() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("venue_import_staging")
-    .select("*, venues(id, name, city, country), import_batches(id, source_name, source_type)")
+    .select("*, duplicateVenue:venues!venue_import_staging_duplicate_existing_venue_id_fkey(id, name, city, country), import_batches(id, source_name, source_type)")
     .in("duplicate_review_status", ["possible_duplicate", "confirmed_duplicate"])
     .order("created_at", { ascending: false })
     .limit(100);
 
   return ((data ?? []) as Array<Tables<"venue_import_staging"> & {
+    duplicateVenue?: AdminStagedVenue["duplicateVenue"];
     import_batches?: AdminDuplicateCandidate["importBatch"];
-    venues?: AdminStagedVenue["duplicateVenue"];
   }>).map((row) => ({
     ...row,
-    duplicateVenue: row.venues ?? null,
+    duplicateVenue: row.duplicateVenue ?? null,
     importBatch: row.import_batches ?? null
   }));
 }
@@ -441,15 +444,36 @@ export async function listStagedVenues(batchId: string) {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("venue_import_staging")
-    .select("*, venues(id, name, city, country)")
+    .select("*, duplicateVenue:venues!venue_import_staging_duplicate_existing_venue_id_fkey(id, name, city, country), approvedVenue:venues!venue_import_staging_approved_venue_id_fkey(id, name, city, country, slug)")
     .eq("import_batch_id", batchId)
     .order("created_at", { ascending: false })
     .limit(100);
 
-  return ((data ?? []) as Array<Tables<"venue_import_staging"> & { venues?: AdminStagedVenue["duplicateVenue"] }>).map((row) => ({
+  return ((data ?? []) as Array<Tables<"venue_import_staging"> & {
+    approvedVenue?: AdminStagedVenue["approvedVenue"];
+    duplicateVenue?: AdminStagedVenue["duplicateVenue"];
+  }>).map((row) => ({
     ...row,
-    duplicateVenue: row.venues ?? null
+    approvedVenue: row.approvedVenue ?? null,
+    duplicateVenue: row.duplicateVenue ?? null
   }));
+}
+
+export async function getStagedVenue(candidateId: string): Promise<AdminStagedVenue | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("venue_import_staging")
+    .select(`
+      *,
+      importBatch:import_batches(id, source_name, source_type, created_at),
+      duplicateVenue:venues!venue_import_staging_duplicate_existing_venue_id_fkey(id, name, city, country),
+      matchedVenue:venues!venue_import_staging_matched_venue_id_fkey(id, name, city, country, slug),
+      approvedVenue:venues!venue_import_staging_approved_venue_id_fkey(id, name, city, country, slug)
+    `)
+    .eq("id", candidateId)
+    .maybeSingle();
+
+  return (data as AdminStagedVenue | null) ?? null;
 }
 
 export async function getImportBatchStats(batchId: string) {

@@ -11,6 +11,7 @@ import type { Database, Tables } from "@/types/database";
 type ProfileRole = Tables<"profiles">["role"];
 type ProfileStatus = Tables<"profiles">["status"];
 type VenueStatus = Tables<"venues">["review_status"];
+type VenueCategory = Database["public"]["Enums"]["venue_category"];
 type VenueVerificationStatus = Tables<"venues">["verification_status"];
 type VenueIdentityClassification = Tables<"venues">["identity_classification"];
 type VenueSubmissionStatus = Tables<"venues">["submission_status"];
@@ -130,7 +131,30 @@ function parseSuggestedTags(value: string) {
 
 function categoryFromCsv(value: string) {
   const normalized = normalizeCsvHeader(value);
-  return venueCategoryValues.includes(normalized as never) ? normalized : null;
+  return venueCategoryValues.includes(normalized as never) ? normalized as VenueCategory : null;
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function jsonObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function stringFrom(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function tagSlugFromLabel(value: string) {
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 export async function updateUserRole(userId: string, formData: FormData) {
@@ -855,6 +879,152 @@ export async function reviewStagedVenue(stagedVenueId: string, batchId: string, 
   revalidatePath("/admin");
   revalidatePath("/admin/imports");
   revalidatePath(`/admin/imports/${batchId}`);
+}
+
+export async function approveStagedVenueAsNew(candidateId: string) {
+  const admin = await requireAdminProfile();
+  const supabase = await createSupabaseServerClient();
+  const { data: candidateData } = await supabase
+    .from("venue_import_staging")
+    .select("*")
+    .eq("id", candidateId)
+    .maybeSingle();
+  const candidate = candidateData as Tables<"venue_import_staging"> | null;
+
+  if (!candidate) redirect("/admin/imports?error=candidate-not-found");
+  if (candidate.approval_status === "approved" || candidate.approved_venue_id) {
+    redirect(`/admin/imports/staged/${candidateId}?error=already-approved`);
+  }
+
+  const raw = jsonObject(candidate.raw_data);
+  const metadata = jsonObject(candidate.source_metadata);
+  const addressComponents = jsonObject(candidate.address_components);
+  const name = stringFrom(candidate.name, raw.name);
+  const city = stringFrom(candidate.city, raw.city, addressComponents.city);
+  const country = stringFrom(candidate.country, raw.country, addressComponents.country);
+
+  if (!name || !city || !country) {
+    redirect(`/admin/imports/staged/${candidateId}?error=missing-required-fields`);
+  }
+
+  const venueId = crypto.randomUUID();
+  const category = categoryFromCsv(candidate.suggested_category ?? "") ?? categoryFromCsv(String(raw.category ?? "")) ?? "bar";
+  const now = new Date().toISOString();
+  const slug = `${slugify(`${name}-${city}`)}-${venueId.slice(0, 8)}`;
+  const insertedVenue = {
+    address: stringFrom(addressComponents.address, raw.address, metadata.address),
+    category,
+    city,
+    city_slug: slugify(city),
+    country,
+    country_slug: slugify(country),
+    description: stringFrom(raw.description, metadata.description, candidate.review_notes),
+    id: venueId,
+    identity_classification: "community_recommended",
+    image_url: stringFrom(raw.image_url, metadata.image_url),
+    is_lgbtq_owned: false,
+    is_published: false,
+    latitude: candidate.latitude,
+    longitude: candidate.longitude,
+    name,
+    neighborhood: stringFrom(addressComponents.neighborhood, raw.neighborhood, metadata.neighborhood),
+    opening_hours: stringFrom(raw.opening_hours, metadata.opening_hours),
+    region: stringFrom(addressComponents.region, raw.region, metadata.region),
+    review_status: "pending_review",
+    reviewed_at: null,
+    reviewed_by: null,
+    slug,
+    source: "imported",
+    source_id: candidate.id,
+    submitted_by: null,
+    submission_status: "imported",
+    verification_score: 0,
+    verification_status: "unverified",
+    website_url: stringFrom(raw.website_url, metadata.website_url)
+  } satisfies Database["public"]["Tables"]["venues"]["Insert"];
+
+  const { error: venueError } = await supabase.from("venues").insert(insertedVenue as never);
+  if (venueError) redirect(`/admin/imports/staged/${candidateId}?error=${encodeURIComponent(venueError.message)}`);
+
+  const selectedTagSlugs = Array.from(new Set(candidate.suggested_tags.map(tagSlugFromLabel)))
+    .filter((slug) => travelerTagSlugs.includes(slug as never));
+
+  if (selectedTagSlugs.length) {
+    await supabase
+      .from("tags")
+      .upsert(travelerTagOptions.map((tag) => ({ name: tag.name, slug: tag.slug })) as never, { onConflict: "slug" });
+    const { data: tagRows } = await supabase.from("tags").select("id, slug").in("slug", selectedTagSlugs);
+    const venueTags = ((tagRows ?? []) as Array<Pick<Tables<"tags">, "id" | "slug">>).map((tag) => ({ tag_id: tag.id, venue_id: venueId }));
+    if (venueTags.length) await supabase.from("venue_tags").insert(venueTags as never);
+  }
+
+  const { error: candidateError } = await supabase
+    .from("venue_import_staging")
+    .update({
+      approval_status: "approved",
+      approved_at: now,
+      approved_by: admin.id,
+      approved_venue_id: venueId,
+      reviewed_at: now,
+      reviewed_by: admin.id
+    } as never)
+    .eq("id", candidateId)
+    .neq("approval_status", "approved")
+    .is("approved_venue_id", null);
+
+  if (candidateError) redirect(`/admin/imports/staged/${candidateId}?error=${encodeURIComponent(candidateError.message)}`);
+
+  await refreshImportBatchCounts(candidate.import_batch_id);
+  await logAudit(admin.id, "import_candidate_approved_as_new_venue", "venue_import_staging", candidateId, {
+    approvedVenueId: venueId,
+    source: candidate.source,
+    sourceId: candidate.source_id
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/imports");
+  revalidatePath(`/admin/imports/${candidate.import_batch_id}`);
+  revalidatePath(`/admin/imports/staged/${candidateId}`);
+  revalidatePath("/admin/venues/review");
+  redirect(`/admin/imports/staged/${candidateId}?updated=approved`);
+}
+
+export async function rejectStagedVenueCandidate(candidateId: string) {
+  const admin = await requireAdminProfile();
+  const supabase = await createSupabaseServerClient();
+  const { data: candidateData } = await supabase.from("venue_import_staging").select("import_batch_id, approval_status").eq("id", candidateId).maybeSingle();
+  const candidate = candidateData as Pick<Tables<"venue_import_staging">, "approval_status" | "import_batch_id"> | null;
+  if (!candidate || candidate.approval_status === "approved") redirect(`/admin/imports/staged/${candidateId}?error=not-reviewable`);
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("venue_import_staging")
+    .update({ approval_status: "rejected", reviewed_at: now, reviewed_by: admin.id } as never)
+    .eq("id", candidateId);
+  await refreshImportBatchCounts(candidate.import_batch_id);
+  await logAudit(admin.id, "import_candidate_rejected", "venue_import_staging", candidateId);
+  revalidatePath("/admin/imports");
+  revalidatePath(`/admin/imports/${candidate.import_batch_id}`);
+  revalidatePath(`/admin/imports/staged/${candidateId}`);
+  redirect(`/admin/imports/staged/${candidateId}?updated=rejected`);
+}
+
+export async function archiveStagedVenueCandidate(candidateId: string) {
+  const admin = await requireAdminProfile();
+  const supabase = await createSupabaseServerClient();
+  const { data: candidateData } = await supabase.from("venue_import_staging").select("import_batch_id, approval_status").eq("id", candidateId).maybeSingle();
+  const candidate = candidateData as Pick<Tables<"venue_import_staging">, "approval_status" | "import_batch_id"> | null;
+  if (!candidate || candidate.approval_status === "approved") redirect(`/admin/imports/staged/${candidateId}?error=not-reviewable`);
+
+  const now = new Date().toISOString();
+  await supabase
+    .from("venue_import_staging")
+    .update({ approval_status: "archived", reviewed_at: now, reviewed_by: admin.id } as never)
+    .eq("id", candidateId);
+  await logAudit(admin.id, "import_candidate_archived", "venue_import_staging", candidateId);
+  revalidatePath("/admin/imports");
+  revalidatePath(`/admin/imports/${candidate.import_batch_id}`);
+  revalidatePath(`/admin/imports/staged/${candidateId}`);
+  redirect(`/admin/imports/staged/${candidateId}?updated=archived`);
 }
 
 export async function mergeStagedVenue(stagedVenueId: string, batchId: string, formData: FormData) {
