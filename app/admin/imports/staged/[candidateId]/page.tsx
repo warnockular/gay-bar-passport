@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { approveStagedVenueAsNew, archiveStagedVenueCandidate, rejectStagedVenueCandidate, updateExistingVenueFromStagedCandidate, updateStagedVenueCandidate } from "@/features/admin/actions";
+import { approveStagedVenueAsNew, rejectStagedVenueCandidate, updateExistingVenueFromStagedCandidate, updateStagedVenueCandidate } from "@/features/admin/actions";
 import { venueCategoryLabel, venueCategoryOptions } from "@/lib/venue-categories";
 import { getStagedVenue, listImportCandidateMatches, type ImportCandidateMatch } from "@/services/admin";
 
@@ -10,6 +10,14 @@ type StagedCandidatePageProps = {
   params: Promise<{ candidateId: string }>;
   searchParams?: Promise<{ edit?: string; error?: string; updated?: string }>;
 };
+
+const safeUpdateFields = [
+  { label: "Website", value: "website_url" },
+  { label: "Phone", value: "phone" },
+  { label: "Hours", value: "opening_hours" },
+  { label: "Coordinates", value: "coordinates" },
+  { label: "Image URL", value: "image_url" }
+];
 
 function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -24,28 +32,8 @@ function textFrom(...values: unknown[]) {
 }
 
 function formValue(...values: unknown[]) {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number") return String(value);
-  }
-  return "";
-}
-
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-md border border-border bg-background/70 p-4">
-      <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</dt>
-      <dd className="mt-2 break-words text-sm font-medium">{value || "Not provided"}</dd>
-    </div>
-  );
-}
-
-function JsonPreview({ value }: { value: unknown }) {
-  return (
-    <pre className="mt-3 max-h-80 overflow-auto rounded-md border border-border bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
-      {JSON.stringify(value, null, 2)}
-    </pre>
-  );
+  const value = textFrom(...values);
+  return value === "Not provided" ? "" : value;
 }
 
 function feedbackMessage(updated?: string) {
@@ -53,8 +41,20 @@ function feedbackMessage(updated?: string) {
   if (updated === "edited") return "Candidate changes saved.";
   if (updated === "updated-existing") return "Candidate approved and used to update an existing venue.";
   if (updated === "rejected") return "Candidate rejected.";
-  if (updated === "archived") return "Candidate archived.";
   return null;
+}
+
+function humanStatus(value: string) {
+  return value.split("_").map((part) => part.slice(0, 1).toUpperCase() + part.slice(1)).join(" ");
+}
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="grid gap-1 border-b border-border/70 py-2 last:border-0 sm:grid-cols-[9rem_1fr]">
+      <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</dt>
+      <dd className="break-words text-sm">{value || "Not provided"}</dd>
+    </div>
+  );
 }
 
 function TextInput({ label, name, value }: { label: string; name: string; value: string }) {
@@ -70,56 +70,94 @@ function TextArea({ label, name, value }: { label: string; name: string; value: 
   return (
     <label className="grid gap-2 text-sm font-semibold md:col-span-2">
       {label}
-      <textarea className="min-h-28 rounded-md border border-border bg-background px-3 py-2 text-sm font-normal" name={name} defaultValue={value} />
+      <textarea className="min-h-24 rounded-md border border-border bg-background px-3 py-2 text-sm font-normal" name={name} defaultValue={value} />
     </label>
   );
 }
 
+function SourceDetails({ candidate, raw }: { candidate: NonNullable<Awaited<ReturnType<typeof getStagedVenue>>>; raw: unknown }) {
+  return (
+    <details className="rounded-md border border-border bg-card/90 p-4">
+      <summary className="cursor-pointer text-sm font-semibold">Source details and raw payload</summary>
+      <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+        <DetailRow label="Source" value={candidate.source} />
+        <DetailRow label="Source ID" value={candidate.source_id ?? "Not provided"} />
+        <DetailRow label="Source URL" value={candidate.source_url ? <a className="text-primary hover:underline" href={candidate.source_url} target="_blank" rel="noreferrer">{candidate.source_url}</a> : "Not provided"} />
+        <DetailRow label="Last seen" value={candidate.last_seen_at ? new Date(candidate.last_seen_at).toLocaleString() : "Not provided"} />
+      </dl>
+      <pre className="mt-4 max-h-72 overflow-auto rounded-md border border-border bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
+        {JSON.stringify(raw, null, 2)}
+      </pre>
+    </details>
+  );
+}
+
+function MatchDifference({ difference }: { difference: ImportCandidateMatch["differences"][number] }) {
+  return (
+    <div className="rounded-md border border-border bg-background/60 p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{difference.field}</p>
+      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+        <div>
+          <p className="font-semibold">Current</p>
+          <p className="mt-1 break-words text-muted-foreground">{difference.currentValue}</p>
+        </div>
+        <div>
+          <p className="font-semibold">Imported</p>
+          <p className="mt-1 break-words">{difference.importedValue}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MatchCard({ canReview, candidateId, match }: { canReview: boolean; candidateId: string; match: ImportCandidateMatch }) {
+  const safeDifferences = match.differences.filter((difference) =>
+    ["Website", "Phone", "Opening hours", "Coordinates", "Image URL"].includes(difference.field)
+  );
+
   return (
     <Card className="bg-card/90 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Badge>{match.confidenceLabel}</Badge>
-          <h3 className="mt-3 font-serif text-2xl font-semibold">{match.venue.name}</h3>
+          <h3 className="font-serif text-2xl font-semibold">{match.venue.name}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{match.venue.city}, {match.venue.country}</p>
         </div>
-        <Badge className="bg-background/70">{match.confidenceScore}/100</Badge>
+        <Badge>{match.confidenceScore}% match</Badge>
       </div>
       {match.reasons.length ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {match.reasons.map((reason) => <Badge key={reason} className="bg-terracotta/10 text-terracotta">{reason}</Badge>)}
         </div>
       ) : null}
-      <div className="mt-5 overflow-hidden rounded-md border border-border">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-muted/50 text-muted-foreground">
-            <tr>
-              <th className="p-2">Field</th>
-              <th className="p-2">Current value</th>
-              <th className="p-2">Imported value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {match.differences.map((difference) => (
-              <tr key={difference.field} className="border-t border-border">
-                <th className="p-2 font-semibold">{difference.field}</th>
-                <td className="max-w-44 break-words p-2 text-muted-foreground">{difference.currentValue}</td>
-                <td className="max-w-44 break-words p-2">{difference.importedValue}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <form action={updateExistingVenueFromStagedCandidate.bind(null, candidateId)} className="mt-4">
+      {safeDifferences.length ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {safeDifferences.map((difference) => <MatchDifference key={difference.field} difference={difference} />)}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-md border border-border bg-background/60 p-3 text-sm text-muted-foreground">No safe field differences to apply.</p>
+      )}
+      <form action={updateExistingVenueFromStagedCandidate.bind(null, candidateId)} className="mt-4 space-y-4">
         <input type="hidden" name="venueId" value={match.venue.id} />
-        <button className="w-full rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
-          Update Existing Venue
-        </button>
+        <fieldset className="rounded-md border border-border bg-background/60 p-3">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Safe fields to update</legend>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {safeUpdateFields.map((field) => (
+              <label key={field.value} className="flex items-center gap-2 text-sm">
+                <input className="h-4 w-4" type="checkbox" name="safeFields" value={field.value} defaultChecked />
+                {field.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
+            Update Existing Venue
+          </button>
+          <Link className="rounded-md border border-border bg-background/70 px-4 py-2 text-center text-sm font-semibold hover:bg-muted" href={`/admin/venues/${match.venue.id}`}>
+            Open current venue
+          </Link>
+        </div>
       </form>
-      <Link className="mt-3 block text-center text-sm font-semibold text-primary hover:underline" href={`/admin/venues/${match.venue.id}`}>
-        Open current venue
-      </Link>
     </Card>
   );
 }
@@ -129,8 +167,10 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
   const query = (await searchParams) ?? {};
   const candidate = await getStagedVenue(candidateId);
   if (!candidate) notFound();
-  const matches = await listImportCandidateMatches(candidate);
 
+  const matches = (await listImportCandidateMatches(candidate))
+    .filter((match) => match.confidenceScore >= 30)
+    .slice(0, 3);
   const raw = asObject(candidate.raw_data);
   const metadata = asObject(candidate.source_metadata);
   const address = asObject(candidate.address_components);
@@ -160,52 +200,61 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
   };
 
   return (
-    <div>
-      <Badge>Imported Candidate</Badge>
-      <h1 className="mt-5 font-serif text-5xl font-semibold">{textFrom(candidate.name, raw.name)}</h1>
-      <p className="mt-3 text-sm text-muted-foreground">
-        Review this staged import candidate before creating a real venue record. Approval creates a pending, unpublished imported venue.
-      </p>
-      <div className="mt-5 flex flex-wrap gap-3">
-        {canReview ? (
-          isEditing ? (
-            <Link className="rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted" href={`/admin/imports/staged/${candidate.id}`}>
-              Cancel editing
-            </Link>
-          ) : (
-            <Link className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" href={`/admin/imports/staged/${candidate.id}?edit=1`}>
-              Edit Candidate
-            </Link>
-          )
-        ) : null}
-      </div>
+    <div className="space-y-6">
+      <Card className="bg-card/90 p-5">
+        <div className="grid gap-5 lg:grid-cols-[1fr_auto]">
+          <div>
+            <div className="flex flex-wrap gap-2">
+              <Badge>Imported Candidate</Badge>
+              <Badge>{candidate.confidence_score !== null ? `${candidate.confidence_score}% confidence` : "No confidence score"}</Badge>
+              <Badge>{candidate.source}</Badge>
+              <Badge>{humanStatus(candidate.approval_status)}</Badge>
+            </div>
+            <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight">{textFrom(candidate.name, raw.name)}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{category} · {textFrom(candidate.city, raw.city, address.city)}, {textFrom(candidate.country, raw.country, address.country)}</p>
+          </div>
+          <div className="grid content-start gap-2 sm:grid-cols-3 lg:w-96">
+            {canReview ? (
+              <Link className="rounded-md border border-border bg-background/70 px-4 py-2 text-center text-sm font-semibold hover:bg-muted" href={isEditing ? `/admin/imports/staged/${candidate.id}` : `/admin/imports/staged/${candidate.id}?edit=1`}>
+                {isEditing ? "Cancel Edit" : "Edit Candidate"}
+              </Link>
+            ) : null}
+            <form action={approveStagedVenueAsNew.bind(null, candidate.id)}>
+              <button className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
+                Approve New
+              </button>
+            </form>
+            <form action={rejectStagedVenueCandidate.bind(null, candidate.id)}>
+              <button className="w-full rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
+                Reject
+              </button>
+            </form>
+          </div>
+        </div>
+      </Card>
 
       {feedback ? (
-        <p className="mt-4 rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage" role="status">{feedback}</p>
+        <p className="rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage" role="status">{feedback}</p>
       ) : null}
       {query.error ? (
-        <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-semibold text-destructive" role="alert">
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-semibold text-destructive" role="alert">
           Action failed: {query.error}
         </p>
       ) : null}
 
-      <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
-        <div className="space-y-6">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <main className="space-y-5">
           {isEditing ? (
             <Card className="bg-card/90 p-5">
-              <h2 className="font-serif text-3xl font-semibold">Edit Candidate</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Clean up staged data before approval. The original raw import payload stays unchanged.
-              </p>
+              <h2 className="font-serif text-2xl font-semibold">Edit Candidate</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Clean up staged data before approval. The original raw import payload stays unchanged.</p>
               <form action={updateStagedVenueCandidate.bind(null, candidate.id)} className="mt-5 grid gap-4 md:grid-cols-2">
                 <TextInput label="Name" name="name" value={values.name} />
                 <label className="grid gap-2 text-sm font-semibold">
                   Category
                   <select className="rounded-md border border-border bg-background px-3 py-2 text-sm font-normal" name="category" defaultValue={categoryValue}>
                     <option value="">Choose category</option>
-                    {venueCategoryOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
+                    {venueCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </label>
                 <TextInput label="Address" name="address" value={values.address} />
@@ -224,78 +273,51 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
                 <TextArea label="Description" name="description" value={values.description} />
                 <TextArea label="Suggested tags" name="suggestedTags" value={values.suggestedTags} />
                 <TextArea label="Notes" name="notes" value={values.notes} />
-                <div className="flex flex-wrap gap-3 md:col-span-2">
-                  <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" type="submit">
-                    Save Candidate Changes
-                  </button>
-                  <Link className="rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted" href={`/admin/imports/staged/${candidate.id}`}>
-                    Cancel
-                  </Link>
-                </div>
+                <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground md:col-span-2" type="submit">
+                  Save Candidate Changes
+                </button>
               </form>
             </Card>
           ) : null}
 
           <Card className="bg-card/90 p-5">
-            <h2 className="font-serif text-3xl font-semibold">Candidate Details</h2>
-            <dl className="mt-5 grid gap-3 md:grid-cols-2">
-              <Field label="Name" value={textFrom(candidate.name, raw.name)} />
-              <Field label="Category" value={category} />
-              <Field label="Address" value={textFrom(address.address, metadata.address, raw.address)} />
-              <Field label="Neighborhood" value={textFrom(address.neighborhood, metadata.neighborhood, raw.neighborhood)} />
-              <Field label="City" value={textFrom(candidate.city, raw.city, address.city)} />
-              <Field label="Region" value={textFrom(address.region, metadata.region, raw.region)} />
-              <Field label="Country" value={textFrom(candidate.country, raw.country, address.country)} />
-              <Field label="Postal code" value={textFrom(candidate.postal_code, address.postal_code, raw.postal_code)} />
-              <Field label="Coordinates" value={candidate.latitude !== null && candidate.longitude !== null ? `${candidate.latitude}, ${candidate.longitude}` : "Not provided"} />
-              <Field label="Website" value={textFrom(metadata.website_url, raw.website_url)} />
-              <Field label="Phone" value={textFrom(candidate.phone, raw.phone)} />
-              <Field label="Image URL" value={textFrom(metadata.image_url, raw.image_url)} />
-              <Field label="Opening hours" value={textFrom(metadata.opening_hours, raw.opening_hours)} />
-              <Field label="Description" value={textFrom(metadata.description, raw.description, candidate.review_notes)} />
-              <Field label="Suggested tags" value={candidate.suggested_tags.length ? candidate.suggested_tags.join(", ") : "Not provided"} />
-              <Field label="Confidence score" value={candidate.confidence_score !== null ? `${candidate.confidence_score}/100` : "Not provided"} />
+            <h2 className="font-serif text-2xl font-semibold">Candidate Details</h2>
+            <dl className="mt-4">
+              <DetailRow label="Address" value={textFrom(address.address, metadata.address, raw.address)} />
+              <DetailRow label="Neighborhood" value={textFrom(address.neighborhood, metadata.neighborhood, raw.neighborhood)} />
+              <DetailRow label="City" value={textFrom(candidate.city, raw.city, address.city)} />
+              <DetailRow label="Region" value={textFrom(address.region, metadata.region, raw.region)} />
+              <DetailRow label="Country" value={textFrom(candidate.country, raw.country, address.country)} />
+              <DetailRow label="Postal code" value={textFrom(candidate.postal_code, address.postal_code, raw.postal_code)} />
+              <DetailRow label="Phone" value={textFrom(candidate.phone, raw.phone)} />
+              <DetailRow label="Website" value={textFrom(metadata.website_url, raw.website_url)} />
+              <DetailRow label="Hours" value={textFrom(metadata.opening_hours, raw.opening_hours)} />
+              <DetailRow label="Suggested tags" value={candidate.suggested_tags.length ? candidate.suggested_tags.join(", ") : "Not provided"} />
             </dl>
           </Card>
 
-          <Card className="bg-card/90 p-5">
-            <h2 className="font-serif text-3xl font-semibold">Source</h2>
-            <dl className="mt-5 grid gap-3 md:grid-cols-2">
-              <Field label="Source" value={candidate.source} />
-              <Field label="Source ID" value={candidate.source_id ?? "Not provided"} />
-              <Field label="Source URL" value={candidate.source_url ? <a className="text-primary hover:underline" href={candidate.source_url} target="_blank" rel="noreferrer">{candidate.source_url}</a> : "Not provided"} />
-              <Field label="Last seen" value={candidate.last_seen_at ? new Date(candidate.last_seen_at).toLocaleString() : "Not provided"} />
-            </dl>
-          </Card>
+          <section className="space-y-4">
+            <div>
+              <h2 className="font-serif text-3xl font-semibold">Existing Venue Matches</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Review the strongest matches first. Low-confidence matches are hidden from this page.</p>
+            </div>
+            {matches.length ? (
+              matches.map((match) => <MatchCard key={match.venue.id} canReview={canReview} candidateId={candidate.id} match={match} />)
+            ) : (
+              <Card className="bg-card/90 p-5 text-sm text-muted-foreground">No likely existing venue matches above 30% confidence.</Card>
+            )}
+          </section>
 
-          <Card className="bg-card/90 p-5">
-            <h2 className="font-serif text-3xl font-semibold">Raw JSON Payload</h2>
-            <JsonPreview value={candidate.raw_data} />
-          </Card>
-        </div>
+          <SourceDetails candidate={candidate} raw={candidate.raw_data} />
+        </main>
 
         <aside className="space-y-5">
           <Card className="bg-card/90 p-5">
-            <h2 className="font-serif text-2xl font-semibold">Possible Existing Venues</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Ranked by name, slug, city, website, coordinates, and address similarity. Updating an existing venue only enriches safe operational fields.
-            </p>
-          </Card>
-          {matches.length ? (
-            matches.map((match) => <MatchCard key={match.venue.id} canReview={canReview} candidateId={candidate.id} match={match} />)
-          ) : (
-            <Card className="bg-card/90 p-5 text-sm text-muted-foreground">No likely existing venue matches found.</Card>
-          )}
-          <Card className="bg-card/90 p-5">
-            <h2 className="font-serif text-2xl font-semibold">Staging Metadata</h2>
+            <h2 className="font-serif text-2xl font-semibold">Metadata</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div><dt className="font-semibold">Batch</dt><dd className="text-muted-foreground">{candidate.importBatch ? <Link className="text-primary hover:underline" href={`/admin/imports/${candidate.importBatch.id}`}>{candidate.importBatch.source_name}</Link> : "Unknown"}</dd></div>
-              <div><dt className="font-semibold">Created</dt><dd className="text-muted-foreground">{new Date(candidate.created_at).toLocaleString()}</dd></div>
-              <div><dt className="font-semibold">Approval status</dt><dd className="text-muted-foreground">{candidate.approval_status}</dd></div>
-              <div><dt className="font-semibold">Duplicate status</dt><dd className="text-muted-foreground">{candidate.duplicate_review_status}</dd></div>
-              <div><dt className="font-semibold">Last edited by</dt><dd className="text-muted-foreground">{candidate.editedBy?.display_name ?? (candidate.edited_by ? "Admin user" : "Not edited")}</dd></div>
-              <div><dt className="font-semibold">Last edited</dt><dd className="text-muted-foreground">{candidate.edited_at ? new Date(candidate.edited_at).toLocaleString() : "Not edited"}</dd></div>
-              <div><dt className="font-semibold">Notes</dt><dd className="text-muted-foreground">{candidate.review_notes ?? "None"}</dd></div>
+              <div><dt className="font-semibold">Approval status</dt><dd className="text-muted-foreground">{humanStatus(candidate.approval_status)}</dd></div>
+              <div><dt className="font-semibold">Last edited</dt><dd className="text-muted-foreground">{candidate.edited_at ? `${new Date(candidate.edited_at).toLocaleString()} by ${candidate.editedBy?.display_name ?? "Admin user"}` : "Not edited"}</dd></div>
             </dl>
             {candidate.approvedVenue ? (
               <Link className="mt-4 block rounded-md border border-sage/30 bg-sage/10 px-3 py-2 text-sm font-semibold text-sage hover:bg-sage/15" href={`/admin/venues/${candidate.approvedVenue.id}`}>
@@ -307,28 +329,6 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
                 Matched venue: {candidate.matchedVenue.name}
               </Link>
             ) : null}
-          </Card>
-
-          <Card className="bg-card/90 p-5">
-            <h2 className="font-serif text-2xl font-semibold">Actions</h2>
-            <p className="mt-2 text-sm text-muted-foreground">No public venue is created until this candidate is approved as new.</p>
-            <div className="mt-5 space-y-3">
-              <form action={approveStagedVenueAsNew.bind(null, candidate.id)}>
-                <button className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
-                  Approve as New Venue
-                </button>
-              </form>
-              <form action={rejectStagedVenueCandidate.bind(null, candidate.id)}>
-                <button className="w-full rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
-                  Reject Candidate
-                </button>
-              </form>
-              <form action={archiveStagedVenueCandidate.bind(null, candidate.id)}>
-                <button className="w-full rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
-                  Archive Candidate
-                </button>
-              </form>
-            </div>
           </Card>
         </aside>
       </div>

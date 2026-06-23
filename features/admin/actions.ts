@@ -1170,6 +1170,7 @@ export async function updateExistingVenueFromStagedCandidate(candidateId: string
 
   const raw = jsonObject(candidate.raw_data);
   const metadata = jsonObject(candidate.source_metadata);
+  const selectedSafeFields = new Set(formData.getAll("safeFields").map(String));
   const safeValues = {
     image_url: stringFrom(metadata.image_url, raw.image_url),
     latitude: candidate.latitude,
@@ -1180,9 +1181,15 @@ export async function updateExistingVenueFromStagedCandidate(candidateId: string
     website_url: stringFrom(metadata.website_url, raw.website_url)
   } satisfies Pick<Database["public"]["Tables"]["venues"]["Update"], "image_url" | "latitude" | "longitude" | "opening_hours" | "phone" | "postal_code" | "website_url">;
 
-  const updatePayload = Object.fromEntries(
-    Object.entries(safeValues).filter(([, value]) => value !== null && value !== "")
-  ) as Database["public"]["Tables"]["venues"]["Update"];
+  const updatePayload: Database["public"]["Tables"]["venues"]["Update"] = {};
+  if (selectedSafeFields.has("website_url") && safeValues.website_url) updatePayload.website_url = safeValues.website_url;
+  if (selectedSafeFields.has("phone") && safeValues.phone) updatePayload.phone = safeValues.phone;
+  if (selectedSafeFields.has("opening_hours") && safeValues.opening_hours) updatePayload.opening_hours = safeValues.opening_hours;
+  if (selectedSafeFields.has("image_url") && safeValues.image_url) updatePayload.image_url = safeValues.image_url;
+  if (selectedSafeFields.has("coordinates") && safeValues.latitude !== null && safeValues.longitude !== null) {
+    updatePayload.latitude = safeValues.latitude;
+    updatePayload.longitude = safeValues.longitude;
+  }
   const changedFields = Object.keys(updatePayload);
   if (!changedFields.length) redirect(`/admin/imports/staged/${candidateId}?error=no-safe-fields`);
 
