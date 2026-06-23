@@ -362,18 +362,24 @@ export type Database = {
       };
       venue_import_staging: {
         Row: {
+          address_components: Json;
           approval_status: Database["public"]["Enums"]["import_approval_status"];
           city: string | null;
+          confidence_score: number | null;
           country: string | null;
           created_at: string;
           duplicate_existing_venue_id: string | null;
           duplicate_review_status: Database["public"]["Enums"]["import_duplicate_status"];
           id: string;
           import_batch_id: string;
+          last_seen_at: string | null;
           latitude: number | null;
           longitude: number | null;
+          matched_venue_id: string | null;
           name: string | null;
           name_similarity: number | null;
+          phone: string | null;
+          postal_code: string | null;
           raw_data: Json;
           review_notes: string | null;
           reviewed_at: string | null;
@@ -381,21 +387,30 @@ export type Database = {
           source: string;
           source_id: string | null;
           source_metadata: Json;
+          source_url: string | null;
+          suggested_category: string | null;
+          suggested_tags: string[];
           updated_at: string;
         };
         Insert: {
+          address_components?: Json;
           approval_status?: Database["public"]["Enums"]["import_approval_status"];
           city?: string | null;
+          confidence_score?: number | null;
           country?: string | null;
           created_at?: string;
           duplicate_existing_venue_id?: string | null;
           duplicate_review_status?: Database["public"]["Enums"]["import_duplicate_status"];
           id?: string;
           import_batch_id: string;
+          last_seen_at?: string | null;
           latitude?: number | null;
           longitude?: number | null;
+          matched_venue_id?: string | null;
           name?: string | null;
           name_similarity?: number | null;
+          phone?: string | null;
+          postal_code?: string | null;
           raw_data?: Json;
           review_notes?: string | null;
           reviewed_at?: string | null;
@@ -403,21 +418,30 @@ export type Database = {
           source: string;
           source_id?: string | null;
           source_metadata?: Json;
+          source_url?: string | null;
+          suggested_category?: string | null;
+          suggested_tags?: string[];
           updated_at?: string;
         };
         Update: {
+          address_components?: Json;
           approval_status?: Database["public"]["Enums"]["import_approval_status"];
           city?: string | null;
+          confidence_score?: number | null;
           country?: string | null;
           created_at?: string;
           duplicate_existing_venue_id?: string | null;
           duplicate_review_status?: Database["public"]["Enums"]["import_duplicate_status"];
           id?: string;
           import_batch_id?: string;
+          last_seen_at?: string | null;
           latitude?: number | null;
           longitude?: number | null;
+          matched_venue_id?: string | null;
           name?: string | null;
           name_similarity?: number | null;
+          phone?: string | null;
+          postal_code?: string | null;
           raw_data?: Json;
           review_notes?: string | null;
           reviewed_at?: string | null;
@@ -425,6 +449,9 @@ export type Database = {
           source?: string;
           source_id?: string | null;
           source_metadata?: Json;
+          source_url?: string | null;
+          suggested_category?: string | null;
+          suggested_tags?: string[];
           updated_at?: string;
         };
         Relationships: [
@@ -440,6 +467,13 @@ export type Database = {
             columns: ["import_batch_id"];
             isOneToOne: false;
             referencedRelation: "import_batches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "venue_import_staging_matched_venue_id_fkey";
+            columns: ["matched_venue_id"];
+            isOneToOne: false;
+            referencedRelation: "venues";
             referencedColumns: ["id"];
           },
           {
