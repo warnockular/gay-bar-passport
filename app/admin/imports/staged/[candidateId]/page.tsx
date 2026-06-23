@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { approveStagedVenueAsNew, archiveStagedVenueCandidate, rejectStagedVenueCandidate } from "@/features/admin/actions";
+import { approveStagedVenueAsNew, archiveStagedVenueCandidate, rejectStagedVenueCandidate, updateExistingVenueFromStagedCandidate } from "@/features/admin/actions";
 import { venueCategoryLabel } from "@/lib/venue-categories";
-import { getStagedVenue } from "@/services/admin";
+import { getStagedVenue, listImportCandidateMatches, type ImportCandidateMatch } from "@/services/admin";
 
 type StagedCandidatePageProps = {
   params: Promise<{ candidateId: string }>;
@@ -42,9 +42,59 @@ function JsonPreview({ value }: { value: unknown }) {
 
 function feedbackMessage(updated?: string) {
   if (updated === "approved") return "Candidate approved as a new pending venue.";
+  if (updated === "updated-existing") return "Candidate approved and used to update an existing venue.";
   if (updated === "rejected") return "Candidate rejected.";
   if (updated === "archived") return "Candidate archived.";
   return null;
+}
+
+function MatchCard({ canReview, candidateId, match }: { canReview: boolean; candidateId: string; match: ImportCandidateMatch }) {
+  return (
+    <Card className="bg-card/90 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Badge>{match.confidenceLabel}</Badge>
+          <h3 className="mt-3 font-serif text-2xl font-semibold">{match.venue.name}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{match.venue.city}, {match.venue.country}</p>
+        </div>
+        <Badge className="bg-background/70">{match.confidenceScore}/100</Badge>
+      </div>
+      {match.reasons.length ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {match.reasons.map((reason) => <Badge key={reason} className="bg-terracotta/10 text-terracotta">{reason}</Badge>)}
+        </div>
+      ) : null}
+      <div className="mt-5 overflow-hidden rounded-md border border-border">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-muted/50 text-muted-foreground">
+            <tr>
+              <th className="p-2">Field</th>
+              <th className="p-2">Current value</th>
+              <th className="p-2">Imported value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {match.differences.map((difference) => (
+              <tr key={difference.field} className="border-t border-border">
+                <th className="p-2 font-semibold">{difference.field}</th>
+                <td className="max-w-44 break-words p-2 text-muted-foreground">{difference.currentValue}</td>
+                <td className="max-w-44 break-words p-2">{difference.importedValue}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <form action={updateExistingVenueFromStagedCandidate.bind(null, candidateId)} className="mt-4">
+        <input type="hidden" name="venueId" value={match.venue.id} />
+        <button className="w-full rounded-md border border-border bg-background/70 px-4 py-2 text-sm font-semibold hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!canReview}>
+          Update Existing Venue
+        </button>
+      </form>
+      <Link className="mt-3 block text-center text-sm font-semibold text-primary hover:underline" href={`/admin/venues/${match.venue.id}`}>
+        Open current venue
+      </Link>
+    </Card>
+  );
 }
 
 export default async function StagedCandidatePage({ params, searchParams }: StagedCandidatePageProps) {
@@ -52,6 +102,7 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
   const query = (await searchParams) ?? {};
   const candidate = await getStagedVenue(candidateId);
   if (!candidate) notFound();
+  const matches = await listImportCandidateMatches(candidate);
 
   const raw = asObject(candidate.raw_data);
   const metadata = asObject(candidate.source_metadata);
@@ -77,7 +128,7 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
         </p>
       ) : null}
 
-      <div className="mt-8 grid gap-5 xl:grid-cols-[1fr_340px]">
+      <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
         <div className="space-y-6">
           <Card className="bg-card/90 p-5">
             <h2 className="font-serif text-3xl font-semibold">Candidate Details</h2>
@@ -118,6 +169,17 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
         </div>
 
         <aside className="space-y-5">
+          <Card className="bg-card/90 p-5">
+            <h2 className="font-serif text-2xl font-semibold">Possible Existing Venues</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Ranked by name, slug, city, website, coordinates, and address similarity. Updating an existing venue only enriches safe operational fields.
+            </p>
+          </Card>
+          {matches.length ? (
+            matches.map((match) => <MatchCard key={match.venue.id} canReview={canReview} candidateId={candidate.id} match={match} />)
+          ) : (
+            <Card className="bg-card/90 p-5 text-sm text-muted-foreground">No likely existing venue matches found.</Card>
+          )}
           <Card className="bg-card/90 p-5">
             <h2 className="font-serif text-2xl font-semibold">Staging Metadata</h2>
             <dl className="mt-4 space-y-3 text-sm">

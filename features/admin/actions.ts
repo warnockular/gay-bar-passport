@@ -988,6 +988,75 @@ export async function approveStagedVenueAsNew(candidateId: string) {
   redirect(`/admin/imports/staged/${candidateId}?updated=approved`);
 }
 
+export async function updateExistingVenueFromStagedCandidate(candidateId: string, formData: FormData) {
+  const admin = await requireAdminProfile();
+  const venueId = String(formData.get("venueId") ?? "").trim();
+  if (!venueId) redirect(`/admin/imports/staged/${candidateId}?error=missing-venue`);
+
+  const supabase = await createSupabaseServerClient();
+  const { data: candidateData } = await supabase
+    .from("venue_import_staging")
+    .select("*")
+    .eq("id", candidateId)
+    .maybeSingle();
+  const candidate = candidateData as Tables<"venue_import_staging"> | null;
+  if (!candidate) redirect("/admin/imports?error=candidate-not-found");
+  if (candidate.approval_status === "approved" || candidate.approved_venue_id) {
+    redirect(`/admin/imports/staged/${candidateId}?error=already-approved`);
+  }
+
+  const raw = jsonObject(candidate.raw_data);
+  const metadata = jsonObject(candidate.source_metadata);
+  const safeValues = {
+    image_url: stringFrom(raw.image_url, metadata.image_url),
+    latitude: candidate.latitude,
+    longitude: candidate.longitude,
+    opening_hours: stringFrom(raw.opening_hours, metadata.opening_hours),
+    phone: candidate.phone,
+    postal_code: candidate.postal_code,
+    website_url: stringFrom(raw.website_url, metadata.website_url)
+  } satisfies Pick<Database["public"]["Tables"]["venues"]["Update"], "image_url" | "latitude" | "longitude" | "opening_hours" | "phone" | "postal_code" | "website_url">;
+
+  const updatePayload = Object.fromEntries(
+    Object.entries(safeValues).filter(([, value]) => value !== null && value !== "")
+  ) as Database["public"]["Tables"]["venues"]["Update"];
+  const changedFields = Object.keys(updatePayload);
+  if (!changedFields.length) redirect(`/admin/imports/staged/${candidateId}?error=no-safe-fields`);
+
+  const { error: venueError } = await supabase.from("venues").update(updatePayload as never).eq("id", venueId);
+  if (venueError) redirect(`/admin/imports/staged/${candidateId}?error=${encodeURIComponent(venueError.message)}`);
+
+  const now = new Date().toISOString();
+  const { error: candidateError } = await supabase
+    .from("venue_import_staging")
+    .update({
+      approval_status: "approved",
+      approved_at: now,
+      approved_by: admin.id,
+      approved_venue_id: venueId,
+      matched_venue_id: venueId,
+      reviewed_at: now,
+      reviewed_by: admin.id
+    } as never)
+    .eq("id", candidateId)
+    .neq("approval_status", "approved")
+    .is("approved_venue_id", null);
+  if (candidateError) redirect(`/admin/imports/staged/${candidateId}?error=${encodeURIComponent(candidateError.message)}`);
+
+  await refreshImportBatchCounts(candidate.import_batch_id);
+  await logAudit(admin.id, "import_candidate_updated_existing_venue", "venue_import_staging", candidateId, {
+    candidateId,
+    fieldsChanged: changedFields.join(", "),
+    venueId
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/imports");
+  revalidatePath(`/admin/imports/${candidate.import_batch_id}`);
+  revalidatePath(`/admin/imports/staged/${candidateId}`);
+  revalidatePath(`/admin/venues/${venueId}`);
+  redirect(`/admin/imports/staged/${candidateId}?updated=updated-existing`);
+}
+
 export async function rejectStagedVenueCandidate(candidateId: string) {
   const admin = await requireAdminProfile();
   const supabase = await createSupabaseServerClient();

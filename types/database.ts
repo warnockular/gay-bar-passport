@@ -984,6 +984,8 @@ export type Database = {
           name: string;
           neighborhood: string | null;
           opening_hours: string | null;
+          phone: string | null;
+          postal_code: string | null;
           region: string | null;
           readiness_status: Database["public"]["Enums"]["venue_readiness_status"];
           review_status: "active" | "hidden" | "pending_review" | "needs_review" | "archived" | "rejected";
@@ -1028,6 +1030,8 @@ export type Database = {
           name: string;
           neighborhood?: string | null;
           opening_hours?: string | null;
+          phone?: string | null;
+          postal_code?: string | null;
           region?: string | null;
           readiness_status?: Database["public"]["Enums"]["venue_readiness_status"];
           review_status?: "active" | "hidden" | "pending_review" | "needs_review" | "archived" | "rejected";
@@ -1072,6 +1076,8 @@ export type Database = {
           name?: string;
           neighborhood?: string | null;
           opening_hours?: string | null;
+          phone?: string | null;
+          postal_code?: string | null;
           region?: string | null;
           readiness_status?: Database["public"]["Enums"]["venue_readiness_status"];
           review_status?: "active" | "hidden" | "pending_review" | "needs_review" | "archived" | "rejected";

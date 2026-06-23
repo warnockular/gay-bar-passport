@@ -34,6 +34,8 @@ const venueDataFoundationDefaults = {
   identity_classification: "lgbtq_venue" as const,
   missing_data: [] as string[],
   opening_hours: null,
+  phone: null,
+  postal_code: null,
   readiness_status: "incomplete" as const,
   reviewed_at: null,
   reviewed_by: null,

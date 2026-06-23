@@ -50,6 +50,14 @@ export type AdminDuplicateCandidate = AdminStagedVenue & {
   importBatch?: Pick<Tables<"import_batches">, "id" | "source_name" | "source_type"> | null;
 };
 type DuplicateVenueSummary = Pick<Tables<"venues">, "address" | "archived_at" | "city" | "country" | "id" | "latitude" | "longitude" | "name" | "website_url">;
+type ImportMatchVenue = Pick<Tables<"venues">, "address" | "city" | "country" | "id" | "image_url" | "latitude" | "longitude" | "name" | "opening_hours" | "phone" | "postal_code" | "slug" | "website_url">;
+export type ImportCandidateMatch = {
+  confidenceLabel: "High confidence duplicate" | "Possible duplicate" | "Unique";
+  confidenceScore: number;
+  differences: Array<{ currentValue: string; field: string; importedValue: string }>;
+  reasons: string[];
+  venue: ImportMatchVenue;
+};
 export type AdminStoredDuplicateCandidate = Tables<"venue_duplicate_candidates"> & {
   venueA?: DuplicateVenueSummary | null;
   venueB?: DuplicateVenueSummary | null;
@@ -474,6 +482,158 @@ export async function getStagedVenue(candidateId: string): Promise<AdminStagedVe
     .maybeSingle();
 
   return (data as AdminStagedVenue | null) ?? null;
+}
+
+function normalizeImportText(value: unknown) {
+  return typeof value === "string"
+    ? value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+    : "";
+}
+
+function normalizeImportAddress(value: unknown) {
+  return normalizeImportText(value)
+    .replace(/\bstreet\b/g, "st")
+    .replace(/\bavenue\b/g, "ave")
+    .replace(/\broad\b/g, "rd")
+    .replace(/\bboulevard\b/g, "blvd")
+    .replace(/\brue\b/g, "rue")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function importDomain(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return "";
+  try {
+    return new URL(value.startsWith("http") ? value : `https://${value}`).hostname.replace(/^www\./, "");
+  } catch {
+    return normalizeImportText(value).replace(/^www /, "");
+  }
+}
+
+function importTokenSimilarity(first: string, second: string) {
+  if (!first || !second) return 0;
+  if (first === second) return 1;
+  if (first.includes(second) || second.includes(first)) return 0.86;
+  const firstTokens = new Set(first.split(" ").filter(Boolean));
+  const secondTokens = new Set(second.split(" ").filter(Boolean));
+  const overlap = [...firstTokens].filter((token) => secondTokens.has(token)).length;
+  const union = new Set([...firstTokens, ...secondTokens]).size;
+  return union ? overlap / union : 0;
+}
+
+function importDistanceKm(firstLat: number | null, firstLng: number | null, secondLat: number | null, secondLng: number | null) {
+  if (firstLat === null || firstLng === null || secondLat === null || secondLng === null) return null;
+  const earthRadiusKm = 6371;
+  const toRadians = (degrees: number) => degrees * Math.PI / 180;
+  const latitudeDelta = toRadians(secondLat - firstLat);
+  const longitudeDelta = toRadians(secondLng - firstLng);
+  const a = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(toRadians(firstLat)) * Math.cos(toRadians(secondLat)) * Math.sin(longitudeDelta / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function candidateValue(candidate: Tables<"venue_import_staging">, key: string) {
+  const raw = objectValue(candidate.raw_data);
+  const metadata = objectValue(candidate.source_metadata);
+  const address = objectValue(candidate.address_components);
+  const direct = candidate[key as keyof Tables<"venue_import_staging">];
+  for (const value of [direct, raw[key], metadata[key], address[key]]) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+  return "";
+}
+
+function matchConfidenceLabel(score: number): ImportCandidateMatch["confidenceLabel"] {
+  if (score >= 90) return "High confidence duplicate";
+  if (score >= 70) return "Possible duplicate";
+  return "Unique";
+}
+
+function diffValue(value: unknown) {
+  if (typeof value === "number") return String(value);
+  return typeof value === "string" && value.trim() ? value.trim() : "Not provided";
+}
+
+export async function listImportCandidateMatches(candidate: Tables<"venue_import_staging">): Promise<ImportCandidateMatch[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("venues")
+    .select("id, name, slug, address, city, country, website_url, latitude, longitude, opening_hours, image_url, phone, postal_code")
+    .is("archived_at", null)
+    .limit(500);
+  const venues = (data ?? []) as ImportMatchVenue[];
+  const candidateName = candidateValue(candidate, "name");
+  const candidateSlug = normalizeImportText(candidateName).replace(/\s+/g, "-");
+  const candidateCity = normalizeImportText(candidateValue(candidate, "city"));
+  const candidateWebsite = candidateValue(candidate, "website_url");
+  const candidateWebsiteDomain = importDomain(candidateWebsite);
+  const candidateAddress = candidateValue(candidate, "address");
+  const normalizedCandidateAddress = normalizeImportAddress(candidateAddress);
+
+  return venues.map((venue) => {
+    const reasons: string[] = [];
+    let score = 0;
+    const venueName = normalizeImportText(venue.name);
+    const nameSimilarity = importTokenSimilarity(normalizeImportText(candidateName), venueName);
+    const sameCity = candidateCity && candidateCity === normalizeImportText(venue.city);
+
+    if (candidateName && venueName && normalizeImportText(candidateName) === venueName) {
+      score += 30;
+      reasons.push("Exact name");
+    } else if (nameSimilarity >= 0.75) {
+      score += 22;
+      reasons.push("Similar name");
+    }
+
+    if (candidateSlug && venue.slug.includes(candidateSlug)) {
+      score += 15;
+      reasons.push("Slug similarity");
+    }
+    if (sameCity) {
+      score += 10;
+      reasons.push("Same city");
+    }
+    if (candidateWebsiteDomain && candidateWebsiteDomain === importDomain(venue.website_url)) {
+      score += 30;
+      reasons.push("Same website");
+    }
+    const distance = importDistanceKm(candidate.latitude, candidate.longitude, venue.latitude, venue.longitude);
+    if (distance !== null && distance <= 0.25) {
+      score += distance <= 0.1 ? 20 : 15;
+      reasons.push("Nearby coordinates");
+    }
+    if (normalizedCandidateAddress && normalizedCandidateAddress === normalizeImportAddress(venue.address)) {
+      score += 25;
+      reasons.push("Similar address");
+    }
+
+    const confidenceScore = Math.min(score, 100);
+    const differences = [
+      { currentValue: diffValue(venue.name), field: "Name", importedValue: diffValue(candidateName) },
+      { currentValue: diffValue(venue.website_url), field: "Website", importedValue: diffValue(candidateWebsite) },
+      { currentValue: diffValue(venue.address), field: "Address", importedValue: diffValue(candidateAddress) },
+      { currentValue: venue.latitude !== null && venue.longitude !== null ? `${venue.latitude}, ${venue.longitude}` : "Not provided", field: "Coordinates", importedValue: candidate.latitude !== null && candidate.longitude !== null ? `${candidate.latitude}, ${candidate.longitude}` : "Not provided" },
+      { currentValue: diffValue(venue.opening_hours), field: "Opening hours", importedValue: diffValue(candidateValue(candidate, "opening_hours")) },
+      { currentValue: diffValue(venue.image_url), field: "Image URL", importedValue: diffValue(candidateValue(candidate, "image_url")) },
+      { currentValue: diffValue(venue.phone), field: "Phone", importedValue: diffValue(candidate.phone) }
+    ];
+
+    return {
+      confidenceLabel: matchConfidenceLabel(confidenceScore),
+      confidenceScore,
+      differences,
+      reasons,
+      venue
+    };
+  })
+    .filter((match) => match.confidenceScore > 0)
+    .sort((first, second) => second.confidenceScore - first.confidenceScore)
+    .slice(0, 8);
 }
 
 export async function getImportBatchStats(batchId: string) {
