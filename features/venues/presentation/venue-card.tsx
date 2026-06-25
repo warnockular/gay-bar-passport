@@ -28,6 +28,7 @@ type VenueCardVenue = VenuePresentationInput & {
 type VenueCardProps = {
   actions?: ReactNode;
   className?: string;
+  distanceMiles?: number | null;
   favoriteIds?: string[];
   href?: string;
   isSignedIn?: boolean;
@@ -48,6 +49,7 @@ function cardHref(venue: VenueCardVenue, href?: string) {
 export function VenueCard({
   actions,
   className,
+  distanceMiles,
   favoriteIds = [],
   href,
   isSignedIn = false,
@@ -106,6 +108,11 @@ export function VenueCard({
                       )}
                     </span>
                   ))}
+                </p>
+              ) : null}
+              {typeof distanceMiles === "number" ? (
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-sage">
+                  {distanceMiles < 0.1 ? "Less than 0.1 miles away" : `${distanceMiles.toFixed(1)} miles away`}
                 </p>
               ) : null}
             </div>

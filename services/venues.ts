@@ -7,6 +7,9 @@ export type VenueTag = Pick<Tables<"tags">, "id" | "name" | "slug">;
 export type VenueWithTags = Tables<"venues"> & {
   tags: VenueTag[];
 };
+export type NearbyVenue = VenueWithTags & {
+  distanceMiles: number | null;
+};
 
 export type VenueFilters = {
   category?: Enums<"venue_category">;
@@ -249,6 +252,35 @@ function filterFallbackVenues(filters: VenueFilters = {}) {
   });
 }
 
+function normalizedLocationPart(value?: string | null) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function hasCoordinates(venue: Pick<VenueWithTags, "latitude" | "longitude">) {
+  return venue.latitude !== null && venue.longitude !== null;
+}
+
+function distanceMiles(first: Pick<VenueWithTags, "latitude" | "longitude">, second: Pick<VenueWithTags, "latitude" | "longitude">) {
+  if (!hasCoordinates(first) || !hasCoordinates(second)) return null;
+
+  const earthRadiusMiles = 3958.8;
+  const firstLatitude = (first.latitude as number) * Math.PI / 180;
+  const secondLatitude = (second.latitude as number) * Math.PI / 180;
+  const latitudeDelta = (((second.latitude as number) - (first.latitude as number)) * Math.PI) / 180;
+  const longitudeDelta = (((second.longitude as number) - (first.longitude as number)) * Math.PI) / 180;
+
+  const a = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(firstLatitude) * Math.cos(secondLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusMiles * c;
+}
+
+function sharedTagCount(first: VenueWithTags, second: VenueWithTags) {
+  const firstTags = new Set(first.tags.map((tag) => tag.slug));
+  return second.tags.reduce((count, tag) => count + (firstTags.has(tag.slug) ? 1 : 0), 0);
+}
+
 export async function listPublishedVenues(filters: VenueFilters = {}): Promise<VenueWithTags[]> {
   if (!isSupabaseConfigured) {
     return filterFallbackVenues(filters);
@@ -287,6 +319,49 @@ export async function listPublishedVenues(filters: VenueFilters = {}): Promise<V
 export async function getVenueBySlug(slug: string) {
   const venues = await listPublishedVenues();
   return venues.find((venue) => venue.slug === slug) ?? null;
+}
+
+export async function listNearbyVenues(currentVenue: VenueWithTags, limit = 6): Promise<NearbyVenue[]> {
+  const venues = await listPublishedVenues({
+    citySlug: currentVenue.city_slug,
+    countrySlug: currentVenue.country_slug
+  });
+  const currentNeighborhood = normalizedLocationPart(currentVenue.neighborhood);
+  const currentCity = normalizedLocationPart(currentVenue.city);
+  const currentHasCoordinates = hasCoordinates(currentVenue);
+
+  return venues
+    .filter((venue) => venue.id !== currentVenue.id)
+    .map((venue) => {
+      const distance = currentHasCoordinates && hasCoordinates(venue) ? distanceMiles(currentVenue, venue) : null;
+      const sameNeighborhood = Boolean(currentNeighborhood) && normalizedLocationPart(venue.neighborhood) === currentNeighborhood;
+      const sameCity = normalizedLocationPart(venue.city) === currentCity;
+
+      return {
+        ...venue,
+        distanceMiles: distance,
+        nearbyScore: {
+          categoryMatch: venue.category === currentVenue.category ? 1 : 0,
+          distanceRank: distance ?? Number.POSITIVE_INFINITY,
+          sameCity: sameCity ? 1 : 0,
+          sameNeighborhood: sameNeighborhood ? 1 : 0,
+          sharedTags: sharedTagCount(currentVenue, venue)
+        }
+      };
+    })
+    .filter((venue) => venue.distanceMiles !== null || venue.nearbyScore.sameNeighborhood || venue.nearbyScore.sameCity)
+    .sort((a, b) => {
+      if (a.distanceMiles !== null && b.distanceMiles !== null) return a.distanceMiles - b.distanceMiles;
+      if (a.distanceMiles !== null) return -1;
+      if (b.distanceMiles !== null) return 1;
+      if (b.nearbyScore.sameNeighborhood !== a.nearbyScore.sameNeighborhood) return b.nearbyScore.sameNeighborhood - a.nearbyScore.sameNeighborhood;
+      if (b.nearbyScore.sameCity !== a.nearbyScore.sameCity) return b.nearbyScore.sameCity - a.nearbyScore.sameCity;
+      if (b.nearbyScore.categoryMatch !== a.nearbyScore.categoryMatch) return b.nearbyScore.categoryMatch - a.nearbyScore.categoryMatch;
+      if (b.nearbyScore.sharedTags !== a.nearbyScore.sharedTags) return b.nearbyScore.sharedTags - a.nearbyScore.sharedTags;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, limit)
+    .map(({ nearbyScore: _nearbyScore, ...venue }) => venue);
 }
 
 export async function listTags(): Promise<VenueTag[]> {

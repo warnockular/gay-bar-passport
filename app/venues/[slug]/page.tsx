@@ -3,13 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, Navigation, ShieldCheck, Stamp } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { VenueDescription, VenueHeader, VenueSidebar } from "@/features/venues/presentation";
+import { VenueCard, VenueDescription, VenueHeader, VenueSidebar } from "@/features/venues/presentation";
 import { FavoriteButton } from "@/features/venues/favorite-button";
 import { VenueShareButton } from "@/features/venues/venue-share-button";
 import { getCurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { getPublicVenuePresentation } from "@/lib/venue-presentation";
-import { getVenueBySlug, listFavoriteVenueIds } from "@/services/venues";
+import { getVenueBySlug, listFavoriteVenueIds, listNearbyVenues } from "@/services/venues";
 
 type VenueDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -48,7 +48,10 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
   }
 
   const user = await getCurrentUser();
-  const favoriteIds = await listFavoriteVenueIds(user?.id);
+  const [favoriteIds, nearbyVenues] = await Promise.all([
+    listFavoriteVenueIds(user?.id),
+    listNearbyVenues(venue)
+  ]);
   const directions = directionsUrl(venue);
   const presentation = getPublicVenuePresentation(venue);
 
@@ -91,6 +94,28 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
           )}
         />
       </div>
+      {nearbyVenues.length ? (
+        <section className="mt-12 border-t border-border pt-10">
+          <div className="mb-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Nearby Venues</p>
+            <h2 className="mt-2 font-serif text-3xl font-semibold">Keep exploring nearby.</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {nearbyVenues.map((nearbyVenue) => (
+              <VenueCard
+                key={nearbyVenue.id}
+                distanceMiles={nearbyVenue.distanceMiles}
+                favoriteIds={favoriteIds}
+                isSignedIn={Boolean(user)}
+                mode="compact"
+                showDescription={false}
+                traitLimit={3}
+                venue={nearbyVenue}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }
