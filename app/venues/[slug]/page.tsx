@@ -11,6 +11,7 @@ import { VenueShareButton } from "@/features/venues/venue-share-button";
 import { getCurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { venueCategoryLabel } from "@/lib/venue-categories";
+import { formatVenueActionLocation, formatVenueHeaderLocation, formatVenueSidebarLocation } from "@/lib/venue-location-display";
 import { getVenueBySlug, listFavoriteVenueIds } from "@/services/venues";
 
 type VenueDetailPageProps = {
@@ -65,8 +66,9 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
   const user = await getCurrentUser();
   const favoriteIds = await listFavoriteVenueIds(user?.id);
   const directions = directionsUrl(venue);
-  const locationLabel = [venue.neighborhood, venue.city, venue.region, venue.country].filter(Boolean).join(", ");
-  const postalAddress = [venue.address, venue.postal_code].filter(Boolean).join(", ");
+  const headerLocation = formatVenueHeaderLocation(venue);
+  const actionLocation = formatVenueActionLocation(venue);
+  const sidebarLocation = formatVenueSidebarLocation(venue);
   const phoneLink = venue.phone ? phoneUrl(venue.phone) : null;
 
   return (
@@ -87,11 +89,18 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
             <h1 className="font-serif text-4xl font-semibold leading-tight sm:text-5xl">{venue.name}</h1>
             <p className="flex flex-wrap items-center gap-2 text-muted-foreground">
               <MapPin className="h-4 w-4 shrink-0 text-rose" aria-hidden="true" />
-              {venue.neighborhood ? <span>{venue.neighborhood}</span> : null}
-              {venue.neighborhood ? <span aria-hidden="true">·</span> : null}
-              <Link className="hover:text-primary" href={`/countries/${venue.country_slug}/${venue.city_slug}`}>{venue.city}</Link>
-              {venue.region ? <span>{venue.region}</span> : null}
-              <Link className="hover:text-primary" href={`/countries/${venue.country_slug}`}>{venue.country}</Link>
+              {headerLocation.map((part, index) => (
+                <span key={`${part}-${index}`} className="inline-flex items-center gap-2">
+                  {index > 0 ? <span aria-hidden="true">·</span> : null}
+                  {part === venue.city ? (
+                    <Link className="hover:text-primary" href={`/countries/${venue.country_slug}/${venue.city_slug}`}>{part}</Link>
+                  ) : part === venue.country ? (
+                    <Link className="hover:text-primary" href={`/countries/${venue.country_slug}`}>{part}</Link>
+                  ) : (
+                    <span>{part}</span>
+                  )}
+                </span>
+              ))}
             </p>
           </div>
           <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{venue.description}</p>
@@ -108,7 +117,7 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
         <Card className="h-fit space-y-5 bg-card/90 p-5 lg:sticky lg:top-24">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Traveler Actions</p>
-            <p className="mt-2 text-sm text-muted-foreground">{locationLabel}</p>
+            {actionLocation ? <p className="mt-2 text-sm text-muted-foreground">{actionLocation}</p> : null}
           </div>
           <div className="grid gap-3">
             <FavoriteButton buttonClassName="w-full" venueId={venue.id} initialIsFavorite={favoriteIds.includes(venue.id)} isSignedIn={Boolean(user)} />
@@ -146,9 +155,8 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Location</p>
             <div className="mt-2 space-y-1 text-sm">
-              {postalAddress ? <p>{postalAddress}</p> : null}
-              {venue.neighborhood ? <p className="text-muted-foreground">{venue.neighborhood}</p> : null}
-              <p className="text-muted-foreground">{[venue.city, venue.region, venue.country].filter(Boolean).join(", ")}</p>
+              {sidebarLocation.primaryLine ? <p>{sidebarLocation.primaryLine}</p> : null}
+              {sidebarLocation.secondaryLine ? <p className="text-muted-foreground">{sidebarLocation.secondaryLine}</p> : null}
             </div>
           </div>
           {venue.phone ? (
