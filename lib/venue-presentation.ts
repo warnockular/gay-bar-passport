@@ -5,12 +5,12 @@ import {
   formatVenueSidebarLocation
 } from "@/lib/venue-location-display";
 
-type VenuePresentationTag = {
+export type VenuePresentationTag = {
   name: string;
   slug: string;
 };
 
-type VenuePresentationInput = {
+export type VenuePresentationInput = {
   address?: string | null;
   category: string;
   city?: string | null;
