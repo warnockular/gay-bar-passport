@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { approveStagedVenueAsNew, rejectStagedVenueCandidate, updateExistingVenueFromStagedCandidate, updateStagedVenueCandidate } from "@/features/admin/actions";
-import { AdminVenueLocationFields } from "@/features/admin/admin-venue-location-fields";
+import { VenueDetailsFields, VenueIdentityFields, VenueLocationFields, VenueMetadataFields, type VenueEditorFieldNameMap, type VenueEditorValueMap } from "@/features/venues/editor";
 import { venueCategoryLabel, venueCategoryOptions } from "@/lib/venue-categories";
 import { getStagedVenue, listImportCandidateMatches, listStagedCandidateAuditLogs, type CandidateAuditLog, type ImportCandidateMatch } from "@/services/admin";
 
@@ -35,12 +35,6 @@ function textFrom(...values: unknown[]) {
 function formValue(...values: unknown[]) {
   const value = textFrom(...values);
   return value === "Not provided" ? "" : value;
-}
-
-function numberOrNull(value: string) {
-  if (!value.trim()) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function normalizeImportedLocation(values: { city: string; country: string; neighborhood: string; region: string }) {
@@ -112,24 +106,6 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-function TextInput({ label, name, value }: { label: string; name: string; value: string }) {
-  return (
-    <label className="grid gap-2 text-sm font-semibold">
-      {label}
-      <input className="rounded-md border border-border bg-background px-3 py-2 text-sm font-normal" name={name} defaultValue={value} />
-    </label>
-  );
-}
-
-function TextArea({ label, name, value }: { label: string; name: string; value: string }) {
-  return (
-    <label className="grid gap-2 text-sm font-semibold md:col-span-2">
-      {label}
-      <textarea className="min-h-24 rounded-md border border-border bg-background px-3 py-2 text-sm font-normal" name={name} defaultValue={value} />
-    </label>
-  );
-}
-
 function SourceDetails({ candidate, raw }: { candidate: NonNullable<Awaited<ReturnType<typeof getStagedVenue>>>; raw: unknown }) {
   return (
     <details className="rounded-md border border-border bg-card/90 p-4">
@@ -146,6 +122,16 @@ function SourceDetails({ candidate, raw }: { candidate: NonNullable<Awaited<Retu
     </details>
   );
 }
+
+const stagedCandidateFieldNames: VenueEditorFieldNameMap = {
+  confidence_score: "confidenceScore",
+  image_url: "imageUrl",
+  opening_hours: "openingHours",
+  postal_code: "postalCode",
+  review_notes: "notes",
+  suggested_tags: "suggestedTags",
+  website_url: "websiteUrl"
+};
 
 function MatchDifference({ difference }: { difference: ImportCandidateMatch["differences"][number] }) {
   return (
@@ -279,6 +265,26 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
     neighborhood: values.neighborhood,
     region: values.region
   });
+  const editorValues: VenueEditorValueMap = {
+    address: values.address,
+    category: categoryValue,
+    city: normalizedLocation.city,
+    confidence_score: values.confidenceScore,
+    country: normalizedLocation.country,
+    description: values.description,
+    image_url: values.imageUrl,
+    latitude: values.latitude,
+    longitude: values.longitude,
+    name: values.name,
+    neighborhood: normalizedLocation.neighborhood,
+    opening_hours: values.openingHours,
+    phone: values.phone,
+    postal_code: values.postalCode,
+    region: normalizedLocation.region,
+    review_notes: values.notes,
+    suggested_tags: values.suggestedTags,
+    website_url: values.websiteUrl
+  };
 
   return (
     <div className="space-y-6">
@@ -351,39 +357,34 @@ export default async function StagedCandidatePage({ params, searchParams }: Stag
             <Card className="bg-card/90 p-5">
               <h2 className="font-serif text-2xl font-semibold">Edit Candidate</h2>
               <p className="mt-2 text-sm text-muted-foreground">Clean up staged data before approval. The original raw import payload stays unchanged.</p>
-              <form action={updateStagedVenueCandidate.bind(null, candidate.id)} className="mt-5 grid gap-4 md:grid-cols-2">
-                <TextInput label="Name" name="name" value={values.name} />
-                <label className="grid gap-2 text-sm font-semibold">
-                  Category
-                  <select className="rounded-md border border-border bg-background px-3 py-2 text-sm font-normal" name="category" defaultValue={categoryValue}>
-                    <option value="">Choose category</option>
-                    {venueCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
-                </label>
-                <div className="md:col-span-2">
+              <form action={updateStagedVenueCandidate.bind(null, candidate.id)} className="mt-5 space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold">Identity</h3>
+                  <div className="mt-3">
+                    <VenueIdentityFields fieldNames={stagedCandidateFieldNames} mode="stagedCandidate" values={editorValues} />
+                  </div>
+                </div>
+                <div>
                   <h3 className="text-sm font-semibold">Location</h3>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
                     Use structured location fields when possible. Unknown imported cities or neighborhoods stay editable as custom values.
                   </p>
-                  <AdminVenueLocationFields
-                    address={values.address}
-                    city={normalizedLocation.city}
-                    country={normalizedLocation.country}
-                    latitude={numberOrNull(values.latitude)}
-                    longitude={numberOrNull(values.longitude)}
-                    neighborhood={normalizedLocation.neighborhood}
-                    region={normalizedLocation.region}
-                  />
+                  <div className="mt-3">
+                    <VenueLocationFields fieldNames={stagedCandidateFieldNames} mode="stagedCandidate" values={editorValues} />
+                  </div>
                 </div>
-                <TextInput label="Postal code" name="postalCode" value={values.postalCode} />
-                <TextInput label="Website URL" name="websiteUrl" value={values.websiteUrl} />
-                <TextInput label="Phone" name="phone" value={values.phone} />
-                <TextInput label="Image URL" name="imageUrl" value={values.imageUrl} />
-                <TextInput label="Confidence score" name="confidenceScore" value={values.confidenceScore} />
-                <TextArea label="Opening hours" name="openingHours" value={values.openingHours} />
-                <TextArea label="Description" name="description" value={values.description} />
-                <TextArea label="Suggested tags" name="suggestedTags" value={values.suggestedTags} />
-                <TextArea label="Notes" name="notes" value={values.notes} />
+                <div>
+                  <h3 className="text-sm font-semibold">Venue Details</h3>
+                  <div className="mt-3">
+                    <VenueDetailsFields fieldNames={stagedCandidateFieldNames} mode="stagedCandidate" values={editorValues} />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Classification / Metadata</h3>
+                  <div className="mt-3">
+                    <VenueMetadataFields fieldNames={stagedCandidateFieldNames} mode="stagedCandidate" values={editorValues} />
+                  </div>
+                </div>
                 <button className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground md:col-span-2" type="submit">
                   Save Candidate Changes
                 </button>
