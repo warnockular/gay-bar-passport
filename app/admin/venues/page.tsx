@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { createBulkOperationDraft, createModerationFlag, updateVenueStatus } from "@/features/admin/actions";
+import { VenueCard } from "@/features/venues/presentation";
 import { listAdminVenues, listBulkOperationDrafts } from "@/services/admin";
 
 type AdminVenuesPageProps = {
@@ -61,12 +62,17 @@ export default async function AdminVenuesPage({ searchParams }: AdminVenuesPageP
       {cityFilter ? <p className="mt-5 rounded-md border border-sage/30 bg-sage/10 p-3 text-sm font-semibold text-sage">Showing venues matching {cityFilter}.</p> : null}
       <div className="mt-8 space-y-4">
         {visibleVenues.map((venue) => (
-          <Card key={venue.id} className="bg-card/90 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <Link href={`/admin/venues/${venue.id}`} className="font-serif text-2xl font-semibold hover:text-primary">{venue.name}</Link>
-                <p className="mt-1 text-sm text-muted-foreground">{venue.city}, {venue.country} · {venue.category}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+          <VenueCard
+            key={venue.id}
+            mode="adminPreview"
+            href={`/admin/venues/${venue.id}`}
+            showDescription={false}
+            showFavorite={false}
+            showWebsiteAction={false}
+            venue={{ ...venue, tags: [] }}
+            actions={(
+              <div className="w-full space-y-4">
+                <div className="flex flex-wrap gap-2">
                   <Badge>{moderationStatus(venue)}</Badge>
                   <Badge>{venue.is_published ? "Published" : "Not public"}</Badge>
                   <Badge>{label(venue.verification_status)}</Badge>
@@ -80,23 +86,23 @@ export default async function AdminVenuesPage({ searchParams }: AdminVenuesPageP
                   Source: {venue.source ? `${venue.source}${venue.source_id ? ` · ${venue.source_id}` : ""}` : "manual"}
                 </p>
                 {venue.missing_data.length ? <p className="mt-2 text-xs text-muted-foreground">Missing: {venue.missing_data.join(", ")}</p> : null}
+                <div className="flex flex-wrap gap-2">
+                  <form action={updateVenueStatus.bind(null, venue.id, "active", undefined)}>
+                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Approve / Make Active</button>
+                  </form>
+                  <form action={updateVenueStatus.bind(null, venue.id, "needs_review", undefined)}>
+                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Mark Needs Review</button>
+                  </form>
+                  <form action={updateVenueStatus.bind(null, venue.id, "archived", undefined)}>
+                    <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Archive Venue</button>
+                  </form>
+                  <form action={createModerationFlag.bind(null, "venue", venue.id, "Venue flagged for review")}>
+                    <button className="rounded-md border border-terracotta/50 bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Flag</button>
+                  </form>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <form action={updateVenueStatus.bind(null, venue.id, "active", undefined)}>
-                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Approve / Make Active</button>
-                </form>
-                <form action={updateVenueStatus.bind(null, venue.id, "needs_review", undefined)}>
-                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Mark Needs Review</button>
-                </form>
-                <form action={updateVenueStatus.bind(null, venue.id, "archived", undefined)}>
-                  <button className="rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Archive Venue</button>
-                </form>
-                <form action={createModerationFlag.bind(null, "venue", venue.id, "Venue flagged for review")}>
-                  <button className="rounded-md border border-terracotta/50 bg-background/70 px-3 py-2 text-sm font-semibold hover:bg-muted" type="submit">Flag</button>
-                </form>
-              </div>
-            </div>
-          </Card>
+            )}
+          />
         ))}
         {!visibleVenues.length ? <Card className="bg-card/90 p-6 text-sm text-muted-foreground">No venues match this city filter.</Card> : null}
       </div>

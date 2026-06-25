@@ -9,10 +9,11 @@ import { VenueVerificationCard } from "./venue-verification-card";
 type VenueSidebarProps = {
   actions: ReactNode;
   className?: string;
+  hideContactWebsite?: boolean;
   venue: VenuePresentationInput;
 };
 
-export function VenueSidebar({ actions, className, venue }: VenueSidebarProps) {
+export function VenueSidebar({ actions, className, hideContactWebsite = false, venue }: VenueSidebarProps) {
   const { location } = getPublicVenuePresentation(venue);
 
   return (
@@ -24,7 +25,7 @@ export function VenueSidebar({ actions, className, venue }: VenueSidebarProps) {
       <div className="grid gap-3">{actions}</div>
       <VenueVerificationCard venue={venue} />
       <VenueLocationCard venue={venue} />
-      <VenueContactCard venue={venue} />
+      <VenueContactCard hideWebsite={hideContactWebsite} venue={venue} />
       <VenueHoursCard venue={venue} />
     </Card>
   );

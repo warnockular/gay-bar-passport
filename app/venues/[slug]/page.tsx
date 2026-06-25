@@ -61,6 +61,7 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
         </div>
         <VenueSidebar
           className="h-fit space-y-5 bg-card/90 p-5 lg:sticky lg:top-24"
+          hideContactWebsite={Boolean(presentation.website)}
           venue={venue}
           actions={(
             <>

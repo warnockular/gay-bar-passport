@@ -1,4 +1,5 @@
 export { VenueContactCard } from "./venue-contact-card";
+export { VenueCard, type VenueCardMode } from "./venue-card";
 export { VenueDescription } from "./venue-description";
 export { VenueHeader } from "./venue-header";
 export { VenueHoursCard } from "./venue-hours-card";
