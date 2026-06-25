@@ -31,6 +31,25 @@ function uniqueParts(parts: Array<string | null | undefined>) {
   });
 }
 
+function splitAddressLines(address: string, postalCode: string) {
+  const parts = address
+    .split(",")
+    .map((part) => cleanPart(part))
+    .filter(Boolean);
+
+  if (parts.length > 1) {
+    const firstLine = parts[0];
+    const secondLineParts = parts.slice(1);
+    if (postalCode && !secondLineParts.some((part) => includesPart(part, postalCode))) {
+      secondLineParts[secondLineParts.length - 1] = `${secondLineParts[secondLineParts.length - 1]} ${postalCode}`.trim();
+    }
+    return [firstLine, secondLineParts.join(", ")].filter(Boolean);
+  }
+
+  const firstLine = [address, postalCode && !includesPart(address, postalCode) ? postalCode : null].filter(Boolean).join(", ");
+  return firstLine ? [firstLine] : [];
+}
+
 export function formatVenueHeaderLocation(venue: VenueLocationInput) {
   return uniqueParts([venue.neighborhood, venue.city, venue.region, venue.country]);
 }
@@ -42,16 +61,20 @@ export function formatVenueActionLocation(venue: VenueLocationInput) {
 export function formatVenueSidebarLocation(venue: VenueLocationInput) {
   const address = cleanPart(venue.address);
   const postalCode = cleanPart(venue.postal_code);
-  const primaryLine = address
-    ? [address, postalCode && !includesPart(address, postalCode) ? postalCode : null].filter(Boolean).join(", ")
-    : "";
+  const addressLines = address ? splitAddressLines(address, postalCode) : [];
+  const addressText = addressLines.join(", ");
+  const addressIncludesPlace = Boolean(
+    addressText && [venue.city, venue.region, venue.country, venue.postal_code].some((part) => includesPart(addressText, part))
+  );
 
   const secondaryLine = uniqueParts([venue.neighborhood, venue.city, venue.region, venue.country])
-    .filter((part) => !primaryLine || !includesPart(primaryLine, part))
+    .filter((part) => !addressText || !includesPart(addressText, part))
+    .filter((part) => !addressIncludesPlace || includesPart(part, venue.neighborhood))
     .join(", ");
 
   return {
-    primaryLine,
+    addressLines,
+    primaryLine: addressLines.join(", "),
     secondaryLine
   };
 }
