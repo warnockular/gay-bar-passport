@@ -2,7 +2,6 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { AdminVenueLocationFields } from "@/features/admin/admin-venue-location-fields";
 import {
   updateVenueFeatured,
   updateVenueIdentityClassification,
@@ -13,9 +12,9 @@ import {
   updateVenueVerification,
   reviewVenueClaim
 } from "@/features/admin/actions";
+import { VenueDetailsFields, VenueIdentityFields, VenueLocationFields, type VenueEditorFieldNameMap, type VenueEditorValueMap } from "@/features/venues/editor";
 import { VenueImagePreview } from "@/features/venues/venue-image-preview";
 import { travelerTagOptions, travelerTagSlugs } from "@/lib/traveler-tags";
-import { venueCategoryOptions } from "@/lib/venue-categories";
 import { getAdminVenue, listAdminVenueTags, listVenueClaimsForVenue } from "@/services/admin";
 import type { Tables } from "@/types/database";
 
@@ -46,6 +45,12 @@ const identityOptions: Array<{ label: string; value: Venue["identity_classificat
   { label: "Community Recommended", value: "community_recommended" }
 ];
 const submissionStatusOptions: Venue["submission_status"][] = ["imported", "community_submitted", "owner_submitted", "admin_created"];
+const adminVenueFieldNames: VenueEditorFieldNameMap = {
+  image_url: "imageUrl",
+  opening_hours: "openingHours",
+  postal_code: "postalCode",
+  website_url: "websiteUrl"
+};
 
 function label(value: string) {
   return value
@@ -74,15 +79,6 @@ function ErrorMessage({ error }: { error?: string }) {
   );
 }
 
-function Field({ children, label: fieldLabel }: { children: React.ReactNode; label: string }) {
-  return (
-    <label className="space-y-2 text-sm font-semibold">
-      <span>{fieldLabel}</span>
-      {children}
-    </label>
-  );
-}
-
 function InputClass() {
   return "h-10 w-full rounded-md border border-input bg-background/80 px-3 text-sm";
 }
@@ -99,6 +95,23 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
   const assignedTagSlugs = new Set(venueTags.map((tag) => tag.slug));
   const managedTagSlugs = new Set<string>(travelerTagSlugs);
   const unmanagedTags = venueTags.filter((tag) => !managedTagSlugs.has(tag.slug));
+  const editorValues: VenueEditorValueMap = {
+    address: venue.address ?? "",
+    category: venue.category,
+    city: venue.city,
+    country: venue.country,
+    description: venue.description ?? "",
+    image_url: venue.image_url ?? "",
+    latitude: venue.latitude,
+    longitude: venue.longitude,
+    name: venue.name,
+    neighborhood: venue.neighborhood ?? "",
+    opening_hours: venue.opening_hours ?? "",
+    phone: venue.phone ?? "",
+    postal_code: venue.postal_code ?? "",
+    region: venue.region ?? "",
+    website_url: venue.website_url ?? ""
+  };
 
   return (
     <div className="space-y-6">
@@ -124,57 +137,26 @@ export default async function AdminVenuePage({ params, searchParams }: AdminVenu
               <input type="hidden" name="feedbackPath" value={feedbackPath} />
               <input type="hidden" name="publicPath" value={`/venues/${venue.slug}`} />
               <section>
-                <h3 className="font-serif text-2xl font-semibold">Basic Information</h3>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <Field label="Name">
-                    <input name="name" defaultValue={venue.name} className={InputClass()} />
-                  </Field>
-                  <Field label="Type">
-                    <select name="category" defaultValue={venue.category} className={InputClass()}>
-                      {venueCategoryOptions.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Website">
-                    <input name="websiteUrl" defaultValue={venue.website_url ?? ""} className={InputClass()} />
-                  </Field>
+                <h3 className="font-serif text-2xl font-semibold">Identity</h3>
+                <div className="mt-4">
+                  <VenueIdentityFields fieldNames={adminVenueFieldNames} mode="adminVenue" values={editorValues} />
                 </div>
               </section>
 
               <section id="location">
                 <h3 className="font-serif text-2xl font-semibold">Location</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Coordinates power future map and directions experiences. Leave blank if unknown.</p>
-                <AdminVenueLocationFields
-                  address={venue.address ?? ""}
-                  city={venue.city}
-                  country={venue.country}
-                  latitude={venue.latitude}
-                  longitude={venue.longitude}
-                  neighborhood={venue.neighborhood ?? ""}
-                  region={venue.region ?? ""}
-                />
-              </section>
-
-              <section>
-                <h3 className="font-serif text-2xl font-semibold">Photos & Media</h3>
-                <VenueImagePreview imageUrl={venue.image_url} alt={`${venue.name} primary venue image preview`} className="mt-4 h-56" mode="admin" />
                 <div className="mt-4">
-                  <Field label="Primary image URL">
-                    <input name="imageUrl" defaultValue={venue.image_url ?? ""} className={InputClass()} placeholder="https://images.unsplash.com/..." />
-                  </Field>
-                  <p className="mt-2 text-xs text-muted-foreground">Clear this field and save to remove the current image. Direct uploads remain a future enhancement.</p>
+                  <VenueLocationFields fieldNames={adminVenueFieldNames} mode="adminVenue" values={editorValues} />
                 </div>
               </section>
 
               <section>
-                <h3 className="font-serif text-2xl font-semibold">Hours & Description</h3>
-                <div className="mt-4 grid gap-4">
-                  <Field label="Opening hours">
-                    <input name="openingHours" defaultValue={venue.opening_hours ?? ""} className={InputClass()} />
-                  </Field>
-                  <label className="space-y-2 text-sm font-semibold">
-                    <span>Description</span>
-                    <textarea name="description" defaultValue={venue.description ?? ""} className="min-h-36 w-full rounded-md border border-input bg-background/80 px-3 py-2 text-sm" />
-                  </label>
+                <h3 className="font-serif text-2xl font-semibold">Venue Details</h3>
+                <VenueImagePreview imageUrl={venue.image_url} alt={`${venue.name} primary venue image preview`} className="mt-4 h-56" mode="admin" />
+                <p className="mt-2 text-xs text-muted-foreground">Clear the Image URL field and save to remove the current image. Direct uploads remain a future enhancement.</p>
+                <div className="mt-4">
+                  <VenueDetailsFields fieldNames={adminVenueFieldNames} mode="adminVenue" values={editorValues} />
                 </div>
               </section>
 
